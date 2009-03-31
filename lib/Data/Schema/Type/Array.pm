@@ -1,0 +1,346 @@
+package Data::Schema::Type::Array;
+
+=head1 NAME
+
+Data::Schema::Type::Array - Type handler for arrays ('array')
+
+=head1 SYNOPSIS
+
+ use Data::Schema;
+
+=head1 DESCRIPTION
+
+This is the handler for arrays (or arrayrefs, to be exact).
+
+Example schema (in YAML syntax):
+
+ [array, { minlen=>1, maxlen=>3, elem_regex_schema=>{'.*'=>int} }]
+
+The above schema says that the array must have one to three elements, and all
+elements must be integers.
+
+Example valid data:
+
+ [1, 2]
+
+Example invalid data:
+
+ []          # too short
+ [1,2,3,4]   # too long
+ ['x']       # element not integer
+
+=cut
+
+use Moose;
+extends 'Data::Schema::Type::Base';
+use Storable qw/freeze/;
+use List::MoreUtils qw/uniq/;
+
+sub cmp {
+    my ($self, $a, $b) = @_;
+    my $res = freeze($a) cmp freeze($b);
+    return 0 if $res == 0;
+    return undef; # because -1 or 1 doesn't make any sense (yet) for array
+}
+
+sub handle_pre_check_attrs {
+    my ($self, $data) = @_;
+    if (ref($data) ne 'ARRAY') {
+        $self->validator->log_error("must be an array");
+        return;
+    }
+    1;
+}
+
+=head1 TYPE ATTRIBUTES
+
+In addition to attributes provided from DST::Base, like B<one_of>, B<is>, etc,
+array has some additional attributes:
+
+=head2 max_len => LEN
+
+Requires that the array have at most LEN elements.
+
+Synonyms: maxlen, max_length, maxlength
+
+=cut
+
+sub handle_attr_max_len {
+    my ($self, $data, $arg) = @_;
+    if (@$data > $arg) {
+        $self->validator->log_error("length must not exceed $arg");
+        return;
+    }
+    1;
+}
+
+# aliases
+sub handle_attr_maxlen { handle_attr_max_len(@_) }
+sub handle_attr_max_length { handle_attr_max_len(@_) }
+sub handle_attr_maxlength { handle_attr_max_len(@_) }
+
+=head2 min_len => LEN
+
+Requires that the array have at least LEN elements.
+
+Synonyms: minlen, min_length, minlength
+
+=cut
+
+sub handle_attr_min_len {
+    my ($self, $data, $arg) = @_;
+    if (@$data < $arg) {
+        $self->validator->log_error("length must be at least $arg");
+        return;
+    }
+    1;
+}
+
+# aliases
+sub handle_attr_minlen { handle_attr_min_len(@_) }
+sub handle_attr_min_length { handle_attr_min_len(@_) }
+sub handle_attr_minlength { handle_attr_min_len(@_) }
+
+=head2 len_between => [MIN, MAX]
+
+A convenience attribute that combines B<minlen> and B<maxlen>.
+
+Synonyms: length_between
+
+=cut
+
+sub handle_attr_len_between {
+    my ($self, $data, $arg) = @_;
+    my $l = @$data;
+    if ($l < $arg->[0] || $l > $arg->[1]) {
+        $self->validator->log_error("length must be between $arg->[0] and $arg->[1])");
+        return;
+    }
+    1;
+}
+
+# aliases
+sub handle_attr_length_between { handle_attr_len_between(@_) }
+
+=head2 len => LEN
+
+Requires that the array have exactly LEN elements.
+
+Synonyms: length
+
+=cut
+
+sub handle_attr_len {
+    my ($self, $data, $arg) = @_;
+    if (@$data != $arg) {
+        $self->validator->log_error("length must be $arg");
+        return;
+    }
+    1;
+}
+
+# aliases
+sub handle_attr_length { handle_attr_len(@_) }
+
+=head2 unique => 0 or 1
+
+If unique is 1, require that the array values be unique (like in a set). If
+unique is 0, require that there are duplicates in the array.
+
+Note: currently the implementation uses List::MoreUtils' uniq().
+
+=cut
+
+sub handle_attr_unique {
+    my ($self, $data, $arg) = @_;
+    my $unique = !(@$data > uniq(@$data));
+    if (($arg ? 1:0) xor ($unique ? 1:0)) {
+        $self->validator->log_error("array must ".($arg ? "":"not ")."be unique");
+        return;
+    }
+    1;
+}
+
+=head2 elems_schema => [SCHEMA_FOR_FIRST_ELEMENT, SCHEMA_FOR_SECOND_ELEM, ...]
+
+Requires that each element of the array validates to the specified schemas.
+
+Synonyms: elems, elements, elem_schema, element_schema, elements_schema
+
+Example (in YAML):
+
+ [array, {elems_schema: [ int, str, [int, {min: 0}] ]}]
+
+The above example states that the array must have an int as the first element,
+string as the second, and positive integer as the third.
+
+=cut
+
+sub handle_attr_elems_schema {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    if (ref($arg) ne 'ARRAY') {
+        $self->validator->log_error("schema error: elems_schema must be array");
+        return;
+    }
+
+    push @{ $self->validator->data_pos }, 0;
+    for my $i (0..@$arg-1) {
+        $self->validator->data_pos->[-1] = $i;
+        push @{ $self->validator->schema_pos }, $i;
+        if (!$self->validator->_validate($data->[$i], $arg->[$i])) {
+            $has_err++;
+        }
+        pop @{ $self->validator->schema_pos };
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+# aliases
+sub handle_attr_elems { handle_attr_elems_schema(@_) }
+sub handle_attr_elements { handle_attr_elems_schema(@_) }
+sub handle_attr_elem_schema { handle_attr_elems_schema(@_) }
+sub handle_attr_element_schema { handle_attr_elems_schema(@_) }
+sub handle_attr_elements_schema { handle_attr_elems_schema(@_) }
+
+=head2 all_elems_schema => SCHEMA
+
+Requires that every element of the array validates to the specified schema.
+
+Synonyms: all_elements_schema, all_element_schema, of
+
+Example (in YAML):
+
+ [array, {of: int}]
+
+The above specifies an array of ints.
+
+=cut
+
+sub handle_attr_all_elems_schema {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    push @{ $self->validator->data_pos }, 0;
+    for my $i (0..@$data-1) {
+        $self->validator->data_pos->[-1] = $i;
+        push @{ $self->validator->schema_pos }, $i;
+        if (!$self->validator->_validate($data->[$i], $arg)) {
+            $has_err++;
+        }
+        pop @{ $self->validator->schema_pos };
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+# aliases
+sub handle_attr_all_elements_schema { handle_attr_all_elems_schema(@_) }
+sub handle_attr_all_element_schema { handle_attr_all_elems_schema(@_) }
+sub handle_attr_of { handle_attr_all_elems_schema(@_) }
+
+=head2 elems_regex_schema => {REGEX=>SCHEMA, REGEX2=>SCHEMA2, ...]
+
+Similar to B<elems_schema>, but instead of specifying schema for each
+element, this attribute allows us to specify using regexes which elements we
+want to specify schema for.
+
+Synonyms: elems_regexp_schema, elem_regex_schema, element_regex_schema,
+elements_regex_schema, elem_regexp_schema, element_regexp_schema,
+elements_regexp_schema (Wow, that's a lot of synonyms. But then I just hate my
+code failing just because I can't remember whether it's singular or plural,
+whether it's regex or regexp, etc. Creating synonyms is cheap anyway.)
+
+Example (in YAML):
+
+ - array
+ - elems_regex_schema:
+     '[02468]$': [int, {minex: 0}]
+     '[13579]$': [int, {maxex: 0}]
+
+The above example states that the array should have as its elements positive and
+negative integer interspersed, e.g. [1, -2, 3, -1, ...].
+
+=cut
+
+sub handle_attr_elems_regex_schema {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    if (ref($arg) ne 'HASH') {
+        $self->validator->log_error("schema error: elems_regex_schema must be hash");
+        return;
+    }
+
+    push @{ $self->validator->data_pos }, 0;
+    for my $i (0..@$data-1) {
+        $self->validator->data_pos->[-1] = $i;
+        my $found = 0;
+        for my $ks (keys %$arg) {
+            next unless $i =~ qr/$ks/;
+            $found++;
+            push @{ $self->validator->schema_pos }, $ks;
+            if (!$self->validator->_validate($data->[$i], $arg->{$ks})) {
+                $has_err++;
+            }
+            pop @{ $self->validator->schema_pos };
+            last if $self->validator->too_many_errors;
+        }
+        if (!$found) {
+            $self->validator->log_error("invalid element");
+            $has_err++;
+        }
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+# aliases
+sub handle_attr_elems_regexp_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_elem_regex_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_element_regex_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_elements_regex_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_elem_regexp_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_element_regexp_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_elements_regexp_schema { handle_attr_elems_regex_schema(@_) }
+
+sub _for_each_elem {
+    my ($self, $data, $arg, $checkfail_sub) = @_;
+    my $has_err = 0;
+
+    push @{ $self->validator->data_pos }, 0;
+    for my $i (0..@$data-1) {
+        my $elem = $data->[$i];
+        $self->validator->data_pos->[-1] = $i;
+        my $errmsg = $checkfail_sub->($i, $elem, $arg);
+        if ($errmsg) {
+            $has_err++;
+            $self->validator->log_error($errmsg);
+            last if $self->validator->too_many_errors;
+        }
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+=head1 AUTHOR
+
+Steven Haryanto, C<< <steven at masterweb.net> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Steven Haryanto, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+
+=cut
+
+__PACKAGE__->meta->make_immutable;
+1;

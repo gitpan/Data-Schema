@@ -1,0 +1,15 @@
+Revision history for Data-Schema
+
+0.01    2009-03-29
+        First release
+
+0.02    2009-03-30
+        - new feature: add new attribute for array: unique
+        - new feature: add attribute alias for Base's one_of: enum
+        - doc: fix typos
+
+0.03    2009-03-30
+        - rename from Schema-Nested to Data-Schema
+        - new feature: attribute suffix
+        - new config: gettext_function
+        - doc: improve & reorganize documentation

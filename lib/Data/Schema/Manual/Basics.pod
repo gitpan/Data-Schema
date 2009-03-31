@@ -1,0 +1,213 @@
+=head1 NAME
+
+Data::Schema::Manual::Basics - Getting started with Data::Schema
+
+
+=head1 OVERVIEW
+
+This document is meant to be first reading for people wanting to know
+and use Data::Schema (DS). It explains what DS is and what it is
+for, how to write DS schemas, and how to validate data structures
+using DS.
+
+
+=head1 INTRODUCTION
+
+Often you want to be certain that a piece of data (a scalar, an array, or
+perhaps a hash of arrays of hashes, etc.) is of specific range
+of values/shape/structure. For example, you might want to make sure that the
+argument to your function is an array of just numbers, or that your command line
+arguments are valid email addresses that are no longer than 64 characters, and
+so on. In fact, data validation happens so often that you're totally sick of
+writing code like this:
+
+ if (!defined($arg)) { die "Please specify an argument!" }
+ if (ref($arg) ne 'ARRAY') { die "Argument is not an array!" }
+ if (!@$arg) { die "Argument is empty array!" }
+ for my $i (0..@$arg-1) {
+     if (!defined($arg)) { die "Element #$i is undefined!" }
+     if ($arg->[$i] !~ /^-?\d+\.?\d*$/) { die "Element #$i is not a number!" }
+ }
+
+This is why schemas are a good thing. A schema is a data structure, not code,
+that declaratively specifies this kind of validation. The functionality of the
+above code can be replaced with this DS schema:
+
+ [array=>{of=>'float', minlen=>1}]
+
+And the final code becomes:
+
+ my $res = ds_validate($arg, $schema);
+ if (!$res->{success}) { die ... }
+
+See how much shorter and simpler it becomes?
+
+DS schemas are less tedious to write, and thus less boring and less error-prone
+than manual data validation. Because DS schemas are just normal data structures,
+they are reusable across programming languages and can also be validated
+themselves (using, why, DS schemas of course).
+
+
+=head1 WRITING SCHEMAS
+
+=head2 First Form (scalar)
+
+The simplest form of a schema is just a string specifying a type:
+
+ TYPE
+
+Example:
+
+ int
+
+or
+
+ hash
+
+=head2 Second Form (array)
+
+If you want to restrict the values that the data can contain, you can add one or
+more type attributes. The schema becomes a two-element array with the type in
+the first element, and the hash of attributes as the second element:
+
+ [ TYPE, ATTRIBUTES ]
+
+Example:
+
+ [ str => {minlen=>4, maxlen=>8} ]
+
+or:
+
+ [ hash => {required_keys=>[qw/name age address/]} ]
+
+For a list of available types and their respective attributes, see the
+documentation for B<Data::Schema::Type::*> modules. There are hash, array,
+int, float, bool, str, and object types, among others.
+
+You can write your own type in Perl. It's pretty simple. See
+L<Data::Schema::Manual::TypeHandler>. Or you can also write new types in
+schema itself. See B<SCHEMA AS TYPE> section below.
+
+=head2 Third Form (hash)
+
+There is also the third form:
+
+ { type: TYPE, attrs: ATTRIBUTES, ... }
+
+which allows for more complex stuffs.
+
+
+=head1 VALIDATING USING DS
+
+The simplest way is just by using the ds_validate() function. It is exported
+by default. The syntax is:
+
+ ds_validate($data, $schema)
+
+Example:
+
+ use Data::Schema;
+ my $res = ds_validate(12, [int => {min=>10}]);
+ die "Invalid!" unless $res->{success};
+
+The result ($res) is a hashref:
+
+ {success=>(0 or 1), errors=>[...], warnings=>[...]}
+
+The 'success' key will be set to 1 if validation is successful, or 0 if not.
+The 'errors' (and 'warnings') keys are each a list of errors (and warnings)
+provided should you want to check for details why the validation fails.
+
+The second way, OO-style, provides more control and options:
+
+ use Data::Schema;
+ my $validator = new Data::Schema;
+
+You can set configuration using:
+
+ $validator->config->{CONFIGVAR} = 'VALUE';
+
+You can also load plugins:
+
+ $validator->register_plugin('Data::Schema::Plugin::WHATEVER');
+
+You can then validate using:
+
+ my $res = $validator->validate($data, $schema);
+
+Refer to L<Data::Schema> for details on available configuration and other
+methods.
+
+
+=head1 SCHEMA AS TYPE
+
+In DS, you can also write new types using schema itself. You can put
+the schema types in another schema, or in a hash, or in YAML files.
+
+Example of putting schema types in another schema:
+
+ my $schema = {
+     def => {
+         even => [int => {divisible_by => 2}],
+         odd  => [int => {mod => [2, 1]}],
+         alt_array => [array => {elem_regex_schema => {"[02468]\$"=>"even", "[13579]\$"=>"odd"}}],
+     },
+     type => "alt_array",
+ };
+
+ my $res;
+ $res = ds_validate([2, 3, 8, -7, 10], $schema); # success
+ $res = ds_validate([2, 2, 7, -7, 10], $schema); # fail on 2nd and 3rd element
+
+Example of putting schema types in a hash:
+
+ my $schema_types = {
+     even          => [int   => {divisible_by => 2}],
+     positive_even => [even  => {min => 0}],
+     array_of_ints => [array => {of => int}],
+     address       => [
+         "hash",
+         {
+          required_keys => [qw/line1 line2 city province country postcode/],
+          keys => {
+              line1    => ["str", {required=>1}],
+              line2    =>  "str",
+              city     => ["str", {required=>1}],
+              province => ["str", {required=>1}],
+              country  => ["str", {regex=>'/^[A-Z]{2}$/', required=>1}],
+              postcode => ["str", {minlen=>4, maxlen=>15}],
+          }
+         }
+     ],
+ };
+
+ $validator->register_plugin('Data::Schema::Plugin::LoadSchema::Hash');
+ $validator->config->{schema_search_path} = $schema_types;
+
+ my $res;
+ $res = validate(4, 'positive_even');              # success
+ $res = validate(4, [positive_even => {min=>10}]); # fail: less than 10
+
+
+=head1 EXAMPLES
+
+What better to demonstrate the power and simplicity of DS schemas than examples?
+
+ XXX
+
+=head1 SEE ALSO
+
+L<Data::Schema::Tutorial::Schema>,
+L<Data::Schema::Tutorial::TypeHandler>,
+L<Data::Schema::Tutorial::Plugin>
+
+=head1 AUTHOR
+
+Steven Haryanto, C<< <steven at masterweb.net> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Steven Haryanto, all rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.

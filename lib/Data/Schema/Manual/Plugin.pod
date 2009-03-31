@@ -1,0 +1,96 @@
+=head1 NAME
+
+Data::Schema::Manual::Plugin - Writing plugins for Data::Schema
+
+
+=head1 OVERVIEW
+
+This document is explains how to write plugins for Data::Schema.
+
+
+=head1 INTRODUCTION
+
+Any object can become a plugin as long as it satisfies these requirements.
+
+1. It has a validator([$validator]) method to retrieve/set the validator
+property.
+
+2. has handle_*() methods according to which functionalities it wants
+  to supply.
+
+
+=head1 HANDLE_*() METHOD CONVENTION
+
+The convention for handle_*() methods is to return 0 if fail, 1 if succeed, or
+-1 if decline. If a plugin decline to handle some event, the next plugin in the
+list will be tried.
+
+
+=head1 AVAILABLE HANDLE_*() METHODS
+
+
+=head2 handle_unknown_type($type)
+
+This is called by DS in the validation process when encountering an unknown type
+to give a chance for plugins to load new types. Used for example by
+DSP::LoadSchema::YAMLFile to load schemas from YAML files.
+
+=head2 handle_type($data, $attr_hashes)
+
+This is for type handler. Called by DS's validate() to validate a type. See the
+implementation in, for example, DST::Base.
+
+=head2 handle_pre_check_attrs($data)
+
+This is for type handler. Called by DST::Base's handle_type() method to allow
+subclass type handlers to do some checks before evaluating type attributes.
+
+=head2 handle_attr_NAME($data, $arg)
+
+This is for type handler. Called by DST::Base's handle_type() method to allow
+subclass type handlers to do attribute checking. For example, if attribute
+B<min> is encountered in the schema, B<handle_attr_min> will be called.
+
+
+=head1 DIFFERENCES FROM TYPE HANDLER
+
+Type handler can be thought of as yet another plugin. The differences are:
+
+1. It is registered via $validator->register_type() instead of
+$validator->register_plugin().
+
+2. It will only be involved in type checking during validation process.
+Specifically it will only handle:
+
+ handle_pre_check_attrs()
+ handle_type()
+ handle_attr_*()
+
+3. You also need to supply cmp().
+
+
+=head1 USING YOUR NEW PLUGIN
+
+To use your new plugin, register it via:
+
+ $validator->register_plugin('Your::Class');
+
+or
+
+ $validator->register_plugin($your_obj);
+
+
+=head1 SEE ALSO
+
+L<Data::Schema::Type::Base>.
+
+=head1 AUTHOR
+
+Steven Haryanto, C<< <steven at masterweb.net> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Steven Haryanto, all rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.

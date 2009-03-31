@@ -1,0 +1,80 @@
+Data-Schema
+
+Data::Schema lets you validate nested data structures with a nested
+structure as a schema.
+
+An example in YAML:
+
+ # schema
+ - hash
+ - valid_keys:
+   name: [str, {required: true}]
+   age: [int, {min: 18, required: true}]
+   address:
+     - hash
+     - valid_keys:
+       street1: [str, {required: true}]
+       street2: str
+       city: str
+       province: str
+       postalcode: [str, {regex: '^\w{5,14}$'}]
+       country: [str: {default: Indonesia}]
+
+ # valid data
+ name: Hasan
+ age: 32
+
+ # invalid data (missing required key: age)
+ name: Hasan
+ address:
+   street1: Jl Kuta 10
+   city: Denpasar
+   province: Bali
+
+ # invalid data (invalid postal code)
+ name: Tim
+ age: 45
+ address:
+   street1: 111th Match Rd
+   city: London
+   postalcode: X-1234
+   country: England
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Makefile.PL
+	make
+	make test
+	make install
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc Data::Schema
+
+You can also look for information at:
+
+    RT, CPAN's request tracker
+        http://rt.cpan.org/NoAuth/Bugs.html?Dist=Data-Schema
+
+    AnnoCPAN, Annotated CPAN documentation
+        http://annocpan.org/dist/Data-Schema
+
+    CPAN Ratings
+        http://cpanratings.perl.org/d/Data-Schema
+
+    Search CPAN
+        http://search.cpan.org/dist/Data-Schema/
+
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 Steven Haryanto
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+

@@ -1,0 +1,377 @@
+=head1 NAME
+
+Data::Schema::Manual::Schema - Data::Schema schema reference
+
+
+=head1 OVERVIEW
+
+This document is explains the syntax of Data::Schema schema.
+
+
+=head1 FORMS
+
+Data::Schema schema is just a normal data structure: Perl scalars,
+arrays, and hashes. Thus, it is easy to write (you can code it in
+Perl, or write it in YAML/JSON files, etc), easy to transport across
+languages and machines, and also easy to validate (using another
+schema).
+
+There are three forms of schema. These different forms are supported
+for the convenience of schema writers. Internally all schemas and
+subschemas will be converted ("normalized") to the third form (HASH).
+
+=head2 First Form (SCALAR)
+
+ TYPE
+
+The simplest form of schema is just a scalar (string) specifying type
+name. This states that the data must be of that type. Each type
+already limits the range of values of the data, e.g. B<int> type only
+allows integers, B<str> allows numbers and text but not arrays/hashes,
+etc.
+
+For more details on type, see B<TYPE> section below.
+
+With this first form you cannot add any other value restrictions or
+anything else, so this form is very limited.
+
+Example:
+
+* Schema:
+
+ "int"
+
+* Valid data:
+
+ 5
+ -2
+
+* Invalid data:
+
+ "int"  # not an integer, but a string
+ [1]    # not an integer, an array
+ {}     # not an integer, an empty hash
+
+=head2 Second Form (ARRAY)
+
+ [TYPE, ATTRHASH, ATTRHASH, ...]
+
+The second form is the array form. The first element of the array is
+required, the type name. The rest is a list of attribute hashes, and
+is optional.
+
+The first form is actually equivalent to this second form:
+
+ [TYPE]
+
+in which no attribute hashes are specified.
+
+Attribute hash is a mapping of attribute names and values. This
+further limits the range of data values possible. Each type has its
+own set of attributes, for example all numeric types (like B<int> and
+B<float>) has the B<min>, B<max>, et al. Most types have a B<one_of>
+attribute to limit values to the list of values we specify, etc.
+
+For type validation to succeed, the type requirement *as well as* the
+requirements of all attributes (from all attribute hashes) must be
+satisfied.
+
+For more details on attribute hashes, see B<ATTRHASH> section below.
+
+Example:
+
+* Schema
+
+ [str => {one_of => [qw/A B O AB/]}]
+
+* Valid data
+
+ "A"
+ "B"
+ "O"
+ "AB"
+
+* Invalid data
+
+ []    # does not satisfy type requirement, not a string
+ "C"   # a string value, but does not satisfy the one_of attribute
+
+Another example:
+
+* Schema:
+
+ ["int", {min=>0, divisible_by=>2}, {divisible_by=>3}]
+
+The schema effectively requires that we
+
+* Valid data:
+
+ 6
+ 12
+
+* Invalid data:
+
+ -6      # an int, satisfies all divisible_by attributes, but not the min
+
+=head2 Third Form (HASH)
+
+ {type=>TYPE,
+  attrs=>ATTRHASH, attr_hashes=>[ATTRHASH, ...],
+  def=>TYPEDEFS,
+  ...}
+
+The third form (HASH) is the most complete form where you can specify
+everything. The B<type> key is required, while the rest are
+optional.
+
+The second form is equivalent to this third form:
+
+ {type=>TYPE, attr_hashes=>[ATTRHASH, ...]}
+
+where nothing but type name and attribute hashes are specified.
+
+The first form is equivalent to this third form:
+
+ {type=>TYPE}
+
+where nothing but type name is specified.
+
+You can specify attribute hashes in B<attr_hashes> key, or if you want
+to specify just one attribute hash, you can use the B<attrs> key. If
+they are both present, attribute hashes from both will be used.
+
+Aside from type and type attribute hashes, the hash form allows us to
+specify other things. Currently the only other thing we can specify
+right now is type definition (TYPEDEF) via the B<def> key, but there
+will be others in the future.
+
+Type definition is a mapping of type name and schema. Type definition
+allows us to declare subschema or schema types. This is a way to break
+down or organize a complex schema into several pieces.
+
+For more details on type definition, see B<TYPEDEF> section below.
+
+Example:
+
+* Schema:
+
+ {
+  def => {
+      single_dice_throw    => [int => {one_of => [1,2,3,4,5,6]}],
+      sdt                  => "single_dice_throw", # short notation
+      dice_pair_throw      => [array => {len=>2, elems=>["sdt", "sdt"]}],
+      dpt                  => "dice_pair_throw",   # short notation
+      throw                => [or => {alts => ["sdt", "dpt"]}],
+      throws               => [array => {of => "throw"}],
+  },
+  type => "throws"
+ }
+
+This schema specifies that we are accepting a list of dice throws
+(B<throws>). Each B<throw> can be a single dice throw (B<sdt>) which
+is a number between 1 and 6, OR a throw of two dices (B<dpt>) which is
+a 2-element array (where each element is a number between 1 and 6).
+
+* Valid data
+
+ [1, [1,3], 6, 4, 2, [3,5]]
+
+* Invalid data
+
+ [1, [2, 3], 0]     # the third throw is invalid
+ [1, [2,0,4], 4, 5] # the second throw (a dice pair throw) is invalid
+
+
+=head1 TYPE
+
+Data::Schema comes with several types out of the box, for example:
+B<bool>, B<int>, B<float>, B<str>, B<array>, B<hash>, etc.
+
+Each type is handled by a type handler, which is a Perl module.
+
+For more details on each type, refer to its handler module
+documentation. For example, for B<hash> type, see
+L<Data::Schema::Type::Hash>.
+
+You can write your own type handler. For more information on how to
+write a type handler, see L<Data::Schema::Manual::TypeHandler>.
+
+
+=head1 ATTRHASH
+
+An attribute hash is a mapping of attribute names and values.
+
+Each type has its own set of known attribute names. To see what
+attributes a type supports, see type handler module documentation. For
+example, for B<hash> type, see L<Data::Schema::Type::Hash>.
+
+A schema can specify more than one attribute hashes, in which each
+attribute hash will be evaluated in order. However, if a key on one
+attribute hash contains a prefix (see B<Attribute prefix> section
+below), merging will occur (see B<Merging of attribute hashes> section
+below).
+
+=head2 Attribute prefix
+
+Attribute prefix is one of these characters:
+
+ + - . ! *
+
+prepended to the attribute name.
+
+These will affect merging behaviour of attribute hashes.
+
+The first attribute hash in the schema is not allowed to have
+attribute prefixes on its keys.
+
+=head2 Attribute suffix
+
+Attribute suffix is the dot character (".") followed by one of these:
+
+ errmsg
+
+They give additional information/instruction associated with the
+attribute. They are not necessarily passed to the type attribute
+handler sub (handle_attr_ATTRNAME()) of the type handler but can be
+useful only to the validator.
+
+Validation will fail if an unknown suffix is specified.
+
+=head3 errmsg
+
+This attribute suffix is used to supply custom error message. For
+example:
+
+ [str=>{regex=>'^\w{4,8}$',
+        regex.errmsg=>'4-8 alphanumeric characters only!'}]
+
+When validating the B<regex> attribute fails, instead of the default
+error message from type handler, validator will use the custom error
+message giving clearer information to the user.
+
+Note: if B<gettext_function> configuration is set, this message will
+be passed to the function first before being returned. See
+L<Data::Schema> for more on configuration.
+
+=head2 Merging of attribute hashes
+
+Given several attribute hashes in the schema like:
+
+ [TYPE, AH1, AH2, AH3]
+
+all AH1, AH2, and AH3 will be evaluated in that order. However, if AH2
+keys contain prefixes, AH1 will be merged with AH2 first before
+evaluated. If AH3 contains merge prefixes too then AH1 will be merged
+with AH2 and then merged again with AH3 first before evaluating the
+first attribute hash, and so on. Illustration ("+" notation indicates
+the presence of merge prefix and "|" notation indicates merging).
+
+ AH1, AH2, AH3
+
+ eval(AH1)
+ eval(AH2)
+ eval(AH3)
+
+ AH1, *AH2, AH3
+ eval(AH1|AH2)
+ eval(AH3)
+
+ AH1, AH2, *AH3
+ eval(AH1)
+ eval(AH2|AH3)
+
+ AH1, AH2, AH3
+ eval(AH1|AH2|AH3)
+
+Data::Schema uses Data::PrefixMerge to do merging. Data::PrefixMerge style
+of merging allows keys on the left side to replace but also add,
+subtract, remove keys from the left side. This allows schema
+definition to relax/subtract attribute requirements instead of only
+add attribute requirements.
+
+Examples:
+
+ [int => {divisible_by=>2}, {  divisible_by =>3}] # must be divisible by 2 & 3
+
+ [int => {divisible_by=>2}, {'*divisible_by'=>3}] # will be merged and become:
+ [int => {divisible_by=>3}                      ] # must be divisible by 3 ONLY
+
+ [int => {divisible_by=>2}, {'!divisible_by'=>~}] # will be merged and become:
+ [int => {}                                     ] # need not be divisible at all
+
+ [int => {one_of=>[1,2,3,4,5]}, {  one_of =>[6]}] # impossible to satisfy
+
+ [int => {one_of=>[1,2,3,4,5]}, {'+one_of'=>[6]}] # will be merged and become:
+ [int => {one_of=>[1,2,3,4,5,6]}                ]
+
+ [int => {one_of=>[1,2,3,4,5]}, {'-one_of'=>[4]}] # will be merged and become:
+ [int => {one_of=>[1,2,3,  5]}                  ]
+
+Refer to L<Data::PrefixMerge> for details on merging syntax and behaviour.
+
+
+=head1 TYPEDEF
+
+Type definition is a mapping between type names and schemas. It is
+used to define new types using schemas. These types will be available
+to the schema that defines it.
+
+Example:
+
+ {
+  def => {
+      single_dice_throw    => [int => {one_of => [1,2,3,4,5,6]}],
+      sdt                  => "single_dice_throw", # short notation
+      dice_pair_throw      => [array => {len=>2, elems=>["sdt", "sdt"]}],
+      dpt                  => "dice_pair_throw",   # short notation
+      throw                => [or => {alts => ["sdt", "dpt"]}],
+      throws               => [array => {of => "throw"}],
+  },
+  type => "throws"
+ }
+
+The B<single_dice_throw>, B<sdt>, etc will not be available outside
+the schema.
+
+Please see B<SCHEMA AS TYPE> section below for more details on
+defining type using schema.
+
+
+=head1 SCHEMA AS TYPE
+
+A schema is a specification of type and some attributes. This
+specification can be declared as a new type, called a schema
+type. When we are validating with another schema which is using that
+type, the attribute hashes from the second schema will be appended to
+the original schema. Illustration:
+
+ SCHEMA1    = [BASETYPE, ATTRHASH1, ATTRHASH2]
+ SCHEMA2    = [SCHEMA1, ATTRHASH3, ATTRHASH4]
+
+This effectively becomes:
+
+ SCHEMA2    = [BASETYPE, ATTRHASH1, ATTRHASH2, ATTRHASH3, ATTRHASH4]
+
+BASETYPE can in turn be schemas themselves, of course.
+
+Schema types are not "real" types in the sense that they cannot
+declare new type attributes, they can only use attributes from their
+base type. In the above illustration, all ATTRHASH1 to ATTRHASH4 are
+attributes from the non-schema-type BASETYPE.
+
+To create a new "real" type with new attributes, you need to write a
+type handler for that type. Refer to
+L<Data::Schema::Manual::TypeHandler>.
+
+
+=head1 AUTHOR
+
+Steven Haryanto, C<< <steven at masterweb.net> >>
+
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Steven Haryanto, all rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.

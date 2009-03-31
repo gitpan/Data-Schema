@@ -1,0 +1,84 @@
+=head1 NAME
+
+Data::Schema::Manual::TypeHandler - Writing type handler for Data::Schema
+
+
+=head1 OVERVIEW
+
+This document is explains how to write type handler using Perl.
+
+
+=head1 INTRODUCTION
+
+Type handler allow DS to recognize and validate a new type.
+
+Any object can become a type handler as long as it satisfies these requirements.
+
+1. It has a validator([$validator]) method to retrieve/set the validator
+property.
+
+2. It has cmp() method.
+
+2. Define handle_pre_check_attrs() method.
+
+3. Define handle_type() method.
+
+4. Define zero or more handle_attr_*() methods.
+
+It is usually more convenient to subclass from L<Data::Schema::Type::Base> so
+you are relieved from many of these tasks, unless you are creating some exotic
+type. With Data::Schema::Type::Base, you usually need to override
+handle_pre_check_attrs() and write some handle_attr_*() methods.
+
+=head1 API
+
+=head2 cmp($a, $b)
+
+Called by DST::Base's various handle_attr_*() methods to allow subclass to
+provide comparison function. Should return -1, 0, 1 a la Perl's cmp() or undef
+if comparison is undefined for the type.
+
+=head2 handle_pre_check_attrs($data)
+
+Called by DST::Base's handle_type() to give a chance to subclass to inspect the
+data whether its value is acceptable for the type.
+
+=head2 handle_type($data, $attr_hashes)
+
+Called by the validator's _validate() method. $attr_hashes is an arrayref of
+attribute hash. Each attribute hash is a mapping attribute name and values.
+
+Should return 1 when succesful or 0 if fails. If there are errors, please log
+them using $validator->log_error().;
+
+=head2 handle_attr_NAME($data, $arg)
+
+This is called by DST::Base's handle_type() when encountering type
+attribute of name=NAME in the attribute hashes. This makes it convenient to
+support new attribute, by just adding a method with the appropriate name.
+
+Should return 1 when succesful or 0 if fails. If there are errors, please log
+them using $validator->log_error().;
+
+
+=head1 USING YOUR NEW TYPE
+
+To use your new type, register it via:
+
+ $validator->register_type('Your::Class');
+
+or
+
+ $validator->register_type($your_obj);
+
+
+=head1 AUTHOR
+
+Steven Haryanto, C<< <steven at masterweb.net> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Steven Haryanto, all rights reserved.
+
+This module is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
