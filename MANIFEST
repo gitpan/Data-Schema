@@ -18,7 +18,7 @@ lib/Data/Schema/Type/All.pm
 lib/Data/Schema/Plugin/LoadSchema/Base.pm
 lib/Data/Schema/Plugin/LoadSchema/Hash.pm
 lib/Data/Schema/Plugin/LoadSchema/YAMLFile.pm
-lib/Data/Schema/Manual/Basics.pod
+lib/Data/Schema/Manual/Tutorial.pod
 lib/Data/Schema/Manual/Schema.pod
 lib/Data/Schema/Manual/TypeHandler.pod
 lib/Data/Schema/Manual/Plugin.pod

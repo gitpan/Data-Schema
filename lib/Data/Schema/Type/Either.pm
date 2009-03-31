@@ -45,15 +45,13 @@ sub cmp {
 
 =head1 TYPE ATTRIBUTES
 
-=head2 alternatives => [schema1, schema2, ...]
+=head2 of => [schema1, schema2, ...]
 
 Specify the schema(s), where the value will need to be valid to one of them.
 
-Synonym: alternative, alt, alts, schema, schemas, choice, choices, of
-
 =cut
 
-sub handle_attr_alternatives {
+sub handle_attr_of {
     my ($self, $data, $arg) = @_;
 
     if (ref($arg) ne 'ARRAY') {
@@ -75,16 +73,6 @@ sub handle_attr_alternatives {
     $ds->log_error("data does not validate to any alternatives");
     return 0;
 }
-
-# aliases
-sub handle_attr_alternative { handle_attr_alternatives(@_) }
-sub handle_attr_alts { handle_attr_alternatives(@_) }
-sub handle_attr_alt { handle_attr_alternatives(@_) }
-sub handle_attr_schemas { handle_attr_alternatives(@_) }
-sub handle_attr_schema { handle_attr_alternatives(@_) }
-sub handle_attr_choices { handle_attr_alternatives(@_) }
-sub handle_attr_choice { handle_attr_alternatives(@_) }
-sub handle_attr_of { handle_attr_alternatives(@_) }
 
 =head1 AUTHOR
 

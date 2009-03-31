@@ -296,7 +296,7 @@ Examples:
  [int => {divisible_by=>2}, {'*divisible_by'=>3}] # will be merged and become:
  [int => {divisible_by=>3}                      ] # must be divisible by 3 ONLY
 
- [int => {divisible_by=>2}, {'!divisible_by'=>~}] # will be merged and become:
+ [int => {divisible_by=>2}, {'!divisible_by'=>0}] # will be merged and become:
  [int => {}                                     ] # need not be divisible at all
 
  [int => {one_of=>[1,2,3,4,5]}, {  one_of =>[6]}] # impossible to satisfy

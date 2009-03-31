@@ -7,7 +7,7 @@ use Test::More tests => 8;
 use lib './t';
 require 'testlib.pm';
 
-# any is just either with no 'alternative' attributes
+# any is just either with no 'of' attributes
 
 use_ok('Data::Schema::Type::Either');
 use_ok('Data::Schema');

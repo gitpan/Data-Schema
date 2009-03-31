@@ -13,3 +13,7 @@ Revision history for Data-Schema
         - new feature: attribute suffix
         - new config: gettext_function
         - doc: improve & reorganize documentation
+
+0.04    2009-03-31
+        - doc: some more work on documentation
+        - change: remove some attribute synonyms, rename some

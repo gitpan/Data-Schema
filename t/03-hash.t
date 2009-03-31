@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 198;
+use Test::More tests => 123;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -24,10 +24,10 @@ valid({}, [hash => {required => 1}], 'required 2');
 
 test_len('hash', {a=>1}, {a=>1, b=>2}, {a=>1, b=>2, c=>3}); # 36
 
-test_is_isnt_oneof('hash', {a=>1}, {b=>1}, {c=>1}, {d=>1}); # 62
+test_is_isnt_oneof('hash', {a=>1}, {b=>1}, {c=>1}, {d=>1}); # 26
 
-# keys_regex, values_regex
-for (qw(regex regexp)) {
+# keys_match, values_match = 1x8 = 8
+for (qw(match)) {
     valid({a=>1}, [hash => {"keys_$_"=>'^\w+$'}], "keys_$_ 1");
     invalid({a=>1, 'b '=>2}, [hash => {"keys_$_"=>'^\w+$'}], "keys_$_ 2");
     valid({'a '=>1}, [hash => {"keys_not_$_"=>'^\w+$'}], "keys_not_$_ 1");
@@ -48,8 +48,8 @@ invalid({b=>1, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 5");
 invalid({c=>undef}, [hash => {required_keys=>[qw/a b/]}], "required_keys 6");
 valid({}, [hash => {required_keys=>[]}], "required_keys 7");
 
-# required_keys_regex
-for (qw(required_keys_regex required_keys_regexp)) {
+# required_keys_regex = 1x7 = 7
+for (qw(required_keys_regex)) {
     valid({a=>1, b=>1, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 1");
     valid({a=>1, b=>1, c=>undef}, [hash => {$_=>'^[ab]$'}], "$_ 2");
     invalid({a=>1, b=>undef, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 3");
@@ -59,16 +59,16 @@ for (qw(required_keys_regex required_keys_regexp)) {
     valid({}, [hash => {$_=>'.*'}], "$_ 7");
 }
 
-# all_keys_schema 2x3 = 6
-for (qw(all_keys_schema of)) {
+# all_keys 2x3 = 6
+for (qw(all_keys of)) {
     my $sch = [hash=>{$_=>'int'}];
     valid({}, $sch, "$_ 1");
     valid({a=>1, b=>0, c=>-1}, $sch, "$_ 2");
     invalid({a=>1, b=>"a"}, $sch, "$_ 3");
 }
 
-# keys/keys_schema 2x14 = 28
-for (qw(keys keys_schema)) {
+# keys 1x14 = 14
+for (qw(keys)) {
     my $sch = [hash=>{$_=>{i=>'int', s=>'str', s2=>[str=>{minlen=>2}]}}];
     valid({}, $sch, "$_ 1.1");
     valid({k=>1}, $sch, "$_ 1.2");
@@ -88,15 +88,15 @@ for (qw(keys keys_schema)) {
     valid({h2=>{hi2=>2}}, $sch, "$_ 2.6");
 }
 
-# keys_one_of 4x3 = 12
-for (qw(keys keys_one_of keys_oneof allowed_keys)) {
+# keys_one_of 2x3 = 6
+for (qw(keys_one_of allowed_keys)) {
     valid({}, [hash=>{$_=>["a", "b"]}], "$_ 1");
     valid({a=>1, b=>1}, [hash=>{$_=>["a", "b"]}], "$_ 2");
     invalid({a=>1, b=>1, c=>1}, [hash=>{$_=>["a", "b"]}], "$_ 3");
 }
 
-# keys_regex_schema 8
-for (qw(keys_regex_schema keys_regexp_schema)) {
+# keys_regex 1x4 = 4
+for (qw(keys_regex)) {
     my $sch = [hash=>{$_=>{'^i\d*$'=>'int'}}];
     valid({}, $sch, "$_ 1");
     valid({i=>1, i2=>2}, $sch, "$_ 2");

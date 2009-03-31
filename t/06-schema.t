@@ -31,10 +31,10 @@ invalid([], 'ip', 'basic 3', $ds);
 valid(undef, 'ip', 'undef', $ds);
 invalid(undef, [ip=>{required=>1}], 'required', $ds);
 
-valid(['1.2.3.4'], [array=>{elem_schema=>['ip']}], 'array 1', $ds);
-valid([], [array=>{elem_schema=>['ip']}], 'array 2', $ds);
-invalid('1.2.3.4', [array=>{elem_schema=>['ip']}], 'array 3', $ds);
-invalid(['1.2.3'], [array=>{elem_schema=>['ip']}], 'array 4', $ds);
+valid(['1.2.3.4'], [array=>{elem=>['ip']}], 'array 1', $ds);
+valid([], [array=>{elem=>['ip']}], 'array 2', $ds);
+invalid('1.2.3.4', [array=>{elem=>['ip']}], 'array 3', $ds);
+invalid(['1.2.3'], [array=>{elem=>['ip']}], 'array 4', $ds);
 
 # required
 valid(undef, 'ip', 'required 1', $ds);

@@ -159,15 +159,13 @@ sub _for_each_key {
     !$has_err;
 }
 
-=head2 keys_regex => REGEX
+=head2 keys_match => REGEX
 
 Require that all hash keys must match a regular expression.
 
-Synonyms: keys_regexp
-
 =cut
 
-sub handle_attr_keys_regex {
+sub handle_attr_keys_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_key($data, $arg,
                          sub {
@@ -177,19 +175,14 @@ sub handle_attr_keys_regex {
                          });
 }
 
-# aliases
-sub handle_attr_keys_regexp { handle_attr_keys_regex(@_) }
+=head2 keys_not_match => REGEX
 
-=head2 keys_not_regex => REGEX
-
-This is the opposite of B<keys_regex>, forbidding all hash keys from matching a
+This is the opposite of B<keys_match>, forbidding all hash keys from matching a
 regular expression.
-
-Synonyms: keys_not_regexp
 
 =cut
 
-sub handle_attr_keys_not_regex {
+sub handle_attr_keys_not_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_key($data, $arg,
                          sub {
@@ -199,14 +192,11 @@ sub handle_attr_keys_not_regex {
                          });
 }
 
-# aliases
-sub handle_attr_keys_not_regexp { handle_attr_keys_not_regex(@_) }
-
 =head2 keys_one_of => [VALUE, ...]
 
 Specify that all hash keys must belong to a list of specified values.
 
-Synonyms: keys, keys_oneof, allowed_keys
+Synonyms: allowed_keys
 
 For example (in YAML):
 
@@ -232,7 +222,6 @@ sub handle_attr_keys_one_of {
 }
 
 # aliases
-sub handle_attr_keys_oneof { handle_attr_keys_one_of(@_) }
 sub handle_attr_allowed_keys { handle_attr_keys_one_of(@_) }
 
 =head2 required_keys => [KEY1, KEY2. ...]
@@ -262,8 +251,6 @@ sub handle_attr_required_keys {
 
 Require that keys matching a regular expression exist in the hash
 
-Synonyms: required_keys_regexp
-
 =cut
 
 sub handle_attr_required_keys_regex {
@@ -281,14 +268,9 @@ sub handle_attr_required_keys_regex {
     1;
 }
 
-# aliases
-sub handle_attr_required_keys_regexp { handle_attr_required_keys_regex(@_) }
-
-=head2 keys_schema => {KEY=>SCHEMA1, KEY2=>SCHEMA2, ...}
+=head2 keys => {KEY=>SCHEMA1, KEY2=>SCHEMA2, ...}
 
 Specify schema for hash keys (hash values, actually).
-
-Synonyms: keys
 
 For example (in YAML):
 
@@ -299,12 +281,12 @@ key 'age' must be a positive integer.
 
 =cut
 
-sub handle_attr_keys_schema {
+sub handle_attr_keys {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     if (ref($arg) ne 'HASH') {
-        $self->validator->log_error("schema error: keys_schema must be hash");
+        $self->validator->log_error("schema error: `keys' attribute must be hash");
         return;
     }
 
@@ -323,19 +305,7 @@ sub handle_attr_keys_schema {
     !$has_err;
 }
 
-sub handle_attr_keys {
-    my ($self, $data, $arg) = @_;
-    if (ref($arg) eq 'HASH') {
-        return handle_attr_keys_schema(@_);
-    } elsif (ref($arg) eq 'ARRAY') {
-        return handle_attr_keys_one_of(@_);
-    } else {
-        $self->validator->log_error("schema error: keys must be hash/array");
-        return 0;
-    }
-}
-
-=head2 all_keys_schema => SCHEMA1
+=head2 all_keys => SCHEMA1
 
 Specify schema for all hash keys (hash values, actually).
 
@@ -349,7 +319,7 @@ This specifies that all hash values for must be ints.
 
 =cut
 
-sub handle_attr_all_keys_schema {
+sub handle_attr_all_keys {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
@@ -366,18 +336,16 @@ sub handle_attr_all_keys_schema {
 }
 
 # aliases
-sub handle_attr_of { handle_attr_all_keys_schema(@_) }
+sub handle_attr_of { handle_attr_all_keys(@_) }
 
-=head2 keys_regex_schema => {REGEX1=>SCHEMA1, REGEX2=>SCHEMA2, ...}
+=head2 keys_regex => {REGEX1=>SCHEMA1, REGEX2=>SCHEMA2, ...}
 
-Similar to B<keys_schema> but instead of specifying schema for each key, we
-specify schema for each set of keys using regular expression.
-
-Synonyms: keys_regexp_schema
+Similar to B<keys> but instead of specifying schema for each key, we specify
+schema for each set of keys using regular expression.
 
 For example:
 
- [hash=>{keys_regex_schema=>{ '\d+'=>"int", '^\D+$'=>"str" }}]
+ [hash=>{keys_regex=>{ '\d+'=>"int", '^\D+$'=>"str" }}]
 
 This specifies that for all keys which contain a digit, the values must be int,
 while for all non-digit-containing keys, the values must be str. Example: {
@@ -385,12 +353,12 @@ a=>"a", a1=>1, a2=>-3, b=>1 }. Note: b=>1 is valid because 1 is a valid str.
 
 =cut
 
-sub handle_attr_keys_regex_schema {
+sub handle_attr_keys_regex {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     if (ref($arg) ne 'HASH') {
-        $self->validator->log_error("schema error: keys_regex_schema must be hash");
+        $self->validator->log_error("schema error: `keys_regex' attribute must be hash");
         return;
     }
 
@@ -412,18 +380,13 @@ sub handle_attr_keys_regex_schema {
     !$has_err;
 }
 
-# aliases
-sub handle_attr_keys_regexp_schema { handle_attr_keys_regex_schema(@_) }
-
-=head2 values_regex => REGEX
+=head2 values_match => REGEX
 
 Specifies that all values must be scalar and match regular expression.
 
-Synonyms: values_regexp
-
 =cut
 
-sub handle_attr_values_regex {
+sub handle_attr_values_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_key($data, $arg,
                          sub {
@@ -433,19 +396,14 @@ sub handle_attr_values_regex {
                          });
 }
 
-# aliases
-sub handle_attr_values_regexp { handle_attr_values_regex(@_) }
+=head2 values_not_match => REGEX
 
-=head2 values_not_regex => REGEX
-
-The opposite of B<values_regex>, requires that all values not match regular
+The opposite of B<values_match>, requires that all values not match regular
 expression (but must be a scalar).
-
-Synonyms: values_not_regexp
 
 =cut
 
-sub handle_attr_values_not_regex {
+sub handle_attr_values_not_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_key($data, $arg,
                          sub {
@@ -454,9 +412,6 @@ sub handle_attr_values_not_regex {
                                 "$_[1] must not match regex $_[2]"
                          });
 }
-
-# aliases
-sub handle_attr_values_not_regexp { handle_attr_values_not_regex(@_) }
 
 =head1 SYNOPSIS
 

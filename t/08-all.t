@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 32;
+use Test::More tests => 12;
 
 use lib './t';
 require 'testlib.pm';
@@ -10,9 +10,9 @@ require 'testlib.pm';
 use_ok('Data::Schema::Type::All');
 use_ok('Data::Schema');
 
-# 2x3x5=30
+# 2x1x5=10
 for my $type (qw(all and)) {
-    for (qw(schema schemas of)) {
+    for (qw(of)) {
         my $sch = [$type => {$_ => [ [int=>{divisible_by=>2}], [int=>{divisible_by=>7}] ]}];
 
         valid(undef, $sch, "$_ undef");

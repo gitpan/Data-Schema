@@ -141,7 +141,7 @@ sub handle_type {
 
 Require that the data is one of the specified choices.
 
-Synonyms: is_one_of, is_oneof, oneof, choice, choices, enum
+Synonyms: is_one_of
 
 =cut
 
@@ -165,17 +165,12 @@ sub handle_attr_one_of {
 
 # aliases
 sub handle_attr_is_one_of { handle_attr_one_of(@_) }
-sub handle_attr_is_oneof { handle_attr_one_of(@_) }
-sub handle_attr_oneof { handle_attr_one_of(@_) }
-sub handle_attr_choice { handle_attr_one_of(@_) }
-sub handle_attr_choices { handle_attr_one_of(@_) }
-sub handle_attr_enum { handle_attr_one_of(@_) }
 
 =head2 not_one_of => [value1, ...]
 
 Require that the data is not listed in one of the specified "blacklists".
 
-Synonyms: is_not_one_of, isnt_one_of, not_oneof, is_not_oneof, isnt_oneof
+Synonyms: isnt_one_of
 
 =cut
 
@@ -200,11 +195,7 @@ sub handle_attr_not_one_of {
 }
 
 # aliases
-sub handle_attr_is_not_one_of { handle_attr_not_one_of(@_) }
 sub handle_attr_isnt_one_of { handle_attr_not_one_of(@_) }
-sub handle_attr_not_oneof { handle_attr_not_one_of(@_) }
-sub handle_attr_is_not_oneof { handle_attr_not_one_of(@_) }
-sub handle_attr_isnt_oneof { handle_attr_not_one_of(@_) }
 
 =head2 is => value
 
@@ -222,7 +213,7 @@ sub handle_attr_is {
 A convenient attribute for B<not_one_of> when there is only one item in the
 blacklist.
 
-Synonyms: is_not, not
+Synonyms: not
 
 =cut
 
@@ -233,14 +224,13 @@ sub handle_attr_isnt {
 }
 
 # aliases
-sub handle_attr_is_not { handle_attr_isnt(@_) }
 sub handle_attr_not { handle_attr_isnt(@_) }
 
 =head2 min => MIN
 
 Require that the value is not less than some specified minimum.
 
-Synonyms: ge, greater_or_equal_than, greater_equal_than
+Synonyms: ge
 
 =cut
 
@@ -260,14 +250,12 @@ sub handle_attr_min {
 
 # aliases
 sub handle_attr_ge { handle_attr_min(@_) }
-sub handle_attr_greater_or_equal_than { handle_attr_min(@_) }
-sub handle_attr_greater_equal_than { handle_attr_min(@_) }
 
 =head2 minex => MIN
 
 Require that the value is not less or equal than some specified minimum.
 
-Synonyms: gt, greater_than
+Synonyms: gt
 
 =cut
 
@@ -287,13 +275,12 @@ sub handle_attr_minex {
 
 # aliases
 sub handle_attr_gt { handle_attr_minex(@_) }
-sub handle_attr_greater_than { handle_attr_minex(@_) }
 
 =head2 max => MAX
 
 Require that the value is less or equal than some specified maximum.
 
-Synonyms: le, less_or_equal_than, less_equal_than
+Synonyms: le
 
 =cut
 
@@ -313,14 +300,12 @@ sub handle_attr_max {
 
 # aliases
 sub handle_attr_le { handle_attr_max(@_) }
-sub handle_attr_less_or_equal_than { handle_attr_max(@_) }
-sub handle_attr_less_equal_than { handle_attr_max(@_) }
 
 =head2 maxex => MAX
 
 Require that the value is less than some specified maximum.
 
-Synonyms: lt, less_than
+Synonyms: lt
 
 =cut
 
@@ -340,7 +325,6 @@ sub handle_attr_maxex {
 
 # aliases
 sub handle_attr_lt { handle_attr_maxex(@_) }
-sub handle_attr_less_than { handle_attr_maxex(@_) }
 
 =head2 between => [MIN, MAX]
 

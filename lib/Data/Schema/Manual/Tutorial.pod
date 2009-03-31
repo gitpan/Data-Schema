@@ -1,14 +1,13 @@
 =head1 NAME
 
-Data::Schema::Manual::Basics - Getting started with Data::Schema
+Data::Schema::Manual::Tutorial - Introduction to and using Data::Schema
 
 
 =head1 OVERVIEW
 
 This document is meant to be first reading for people wanting to know
-and use Data::Schema (DS). It explains what DS is and what it is
-for, how to write DS schemas, and how to validate data structures
-using DS.
+and use Data::Schema (DS). It explains what DS is and what it is for,
+how to write DS schemas, and how to validate data structures using DS.
 
 
 =head1 INTRODUCTION
@@ -94,7 +93,8 @@ There is also the third form:
 
  { type: TYPE, attrs: ATTRIBUTES, ... }
 
-which allows for more complex stuffs.
+which allows for more complex stuffs, but we do not need to write in
+this form unless we want to define subschemas (a.k.a schema types).
 
 
 =head1 VALIDATING USING DS
@@ -114,9 +114,12 @@ The result ($res) is a hashref:
 
  {success=>(0 or 1), errors=>[...], warnings=>[...]}
 
-The 'success' key will be set to 1 if validation is successful, or 0 if not.
-The 'errors' (and 'warnings') keys are each a list of errors (and warnings)
-provided should you want to check for details why the validation fails.
+The 'success' key will be set to 1 if validation is successful, or 0
+if not.  The 'errors' (and 'warnings') keys are each a list of errors
+(and warnings) provided should you want to check for details why the
+validation fails. Each error/warning message is prefixed with data and
+schema path-like position to help you pinpoint where in the data and
+schema the validation fails.
 
 The second way, OO-style, provides more control and options:
 
@@ -135,22 +138,30 @@ You can then validate using:
 
  my $res = $validator->validate($data, $schema);
 
+The result is the same hashref described above.
+
 Refer to L<Data::Schema> for details on available configuration and other
 methods.
 
 
 =head1 SCHEMA AS TYPE
 
-In DS, you can also write new types using schema itself. You can put
-the schema types in another schema, or in a hash, or in YAML files.
+In DS, you can also write new types using schema itself. In other
+words, you can define schemas in terms of other schemas.
 
-Example of putting schema types in another schema:
+You can put these schema types in another schema (in which you might
+call the schema types as "subschemas"), or in a hash, or in YAML
+files.
+
+=head2 Schema types inside schema
+
+Example of putting schema types (subschemas) in another schema:
 
  my $schema = {
      def => {
          even => [int => {divisible_by => 2}],
          odd  => [int => {mod => [2, 1]}],
-         alt_array => [array => {elem_regex_schema => {"[02468]\$"=>"even", "[13579]\$"=>"odd"}}],
+         alt_array => [array => {elem_regex => {"[02468]\$"=>"even", "[13579]\$"=>"odd"}}],
      },
      type => "alt_array",
  };
@@ -159,12 +170,34 @@ Example of putting schema types in another schema:
  $res = ds_validate([2, 3, 8, -7, 10], $schema); # success
  $res = ds_validate([2, 2, 7, -7, 10], $schema); # fail on 2nd and 3rd element
 
-Example of putting schema types in a hash:
+The above schema says that you want an array with alternating even and
+odd integers. B<even> and B<odd> can be regarded as subschemas, and
+they are used by the B<alt_array> subschema.
+
+Of course you can also write the schema in "one go":
+
+ $schema = [
+   array => {
+     elem_regex => {
+       "[02468]\$"=>[int => {divisible_by => 2}],
+       "[13579]\$"=>[int => {mod => [2, 1]}],
+     }
+  }
+ ];
+
+but some of us might find breaking down a complex schema into pieces
+help in better understanding it.
+
+=head2 Putting schema types in a hash
+
+Aside from putting the schema types in the schema itself, you can also
+put them in a separate hash:
 
  my $schema_types = {
      even          => [int   => {divisible_by => 2}],
      positive_even => [even  => {min => 0}],
      array_of_ints => [array => {of => int}],
+
      address       => [
          "hash",
          {
@@ -188,12 +221,42 @@ Example of putting schema types in a hash:
  $res = validate(4, 'positive_even');              # success
  $res = validate(4, [positive_even => {min=>10}]); # fail: less than 10
 
+The above B<address> schema is for validating an address "record" (or
+"form"). There are also other schema types defined in
+B<$schema_types>. They are loaded using DSP::LoadSchema::Hash.
 
-=head1 EXAMPLES
+=head2 Putting schema types in YAML files
 
-What better to demonstrate the power and simplicity of DS schemas than examples?
+Another alternative is putting schema types in YAML files.
 
- XXX
+ # in schemadir/address.yaml
+ - hash
+ - required_keys: [line1, line2, city, province, country, postcode]
+   keys:
+     line1:    [str, {required: 1}]
+     line2:     str
+     city:     [str, {required: 1}]
+     province: [str, {required: 1}],
+     country:  [str, {regex: '/^[A-Z]{2}$/', required: 1}]
+     postcode: [str, {minlen: 4, maxlen: 15}]
+
+ # in schemadir/even.yaml
+ - int
+ - divisible_by: 2
+
+ # in your code
+ $validator->register_plugin('Data::Schema::Plugin::LoadSchema::YAMLFile');
+ $validator->config->{schema_search_path} = ["schemadir"];
+
+ my $res;
+ $res = validate(4, 'even');              # success
+ $res = validate(4, [even => {min=>10}]); # fail: less than 10
+
+
+=head1 MORE EXAMPLES
+
+For now, please see the B<t/schemas/> directory in the distribution.
+
 
 =head1 SEE ALSO
 

@@ -18,25 +18,19 @@ sub invalid($$$;$) {
 
 sub test_is_isnt_oneof($$$$$;$) {
     my ($type, $valid1, $valid2, $invalid1, $invalid2, $ds) = @_;
-    # one_of, 6x4 = 24
+    # one_of, 2x4 = 8
     for (qw(one_of
             is_one_of
-            oneof
-            is_oneof
-            choice
-            choices)) { # XXX enum
+            )) { # XXX enum
         valid($valid1, [$type => {$_=>[$valid1, $valid2]}], "$type:$_ 1", $ds);
         valid($valid2, [$type => {$_=>[$valid1, $valid2]}], "$type:$_ 2", $ds);
         invalid($invalid1, [$type => {$_=>[$valid1, $valid2]}], "$type:$_ 3", $ds);
         invalid($invalid2, [$type => {$_=>[$valid1, $valid2]}], "$type:$_ 4", $ds);
     }
-    # isnt_one_of = 6x4 = 24
+    # isnt_one_of = 2x4 = 8
     for (qw(isnt_one_of
             not_one_of
-            is_not_one_of
-            isnt_oneof
-            not_oneof
-            is_not_oneof)) {
+            )) {
         valid($valid1, [$type => {$_=>[$invalid1, $invalid2]}], "$type:invalid_values 1", $ds);
         valid($valid2, [$type => {$_=>[$invalid1, $invalid2]}], "$type:invalid_values 2", $ds);
         invalid($invalid1, [$type => {$_=>[$invalid1, $invalid2]}], "$type:invalid_values 3", $ds);
@@ -47,36 +41,35 @@ sub test_is_isnt_oneof($$$$$;$) {
         valid($valid1, [$type => {$_=>$valid1}], "$type:$_ 1", $ds);
         invalid($valid2, [$type => {$_=>$valid1}], "$type:$_ 2", $ds);
     }
-    # isnt, 3x4 = 12
+    # isnt, 2x4 = 8
     for (qw(isnt
-            is_not
             not)) {
         valid($valid1, [$type => {$_=>$invalid1}], "$type:$_ 1", $ds);
         valid($valid2, [$type => {$_=>$invalid1}], "$type:$_ 2", $ds);
         invalid($invalid1, [$type => {$_=>$invalid1}], "$type:$_ 3", $ds);
         valid($invalid2, [$type => {$_=>$invalid1}], "$type:$_ 4", $ds);
     }
-    # total = 62
+    # total = 8+8+2+8 = 26
 }
 
 sub test_min_max($$$$;$) {
     my ($type, $a, $b, $c, $ds) = @_;
-    for (qw(min ge greater_or_equal_than greater_equal_than)) { # 4x3 = 12
+    for (qw(min ge)) { # 2x3 = 6
         invalid($a, [$type => {$_=>$b}], "$type:$_ 1", $ds);
         valid($b, [$type => {$_=>$b}], "$type:$_ 2", $ds);
         valid($c, [$type => {$_=>$b}], "$type:$_ 3", $ds);
     }
-    for (qw(max le less_or_equal_than less_equal_than)) { # 4x3 = 12
+    for (qw(max le)) { # 2x3 = 6
         valid($a, [$type => {$_=>$b}], "$type:$_ 1", $ds);
         valid($b, [$type => {$_=>$b}], "$type:$_ 2", $ds);
         invalid($c, [$type => {$_=>$b}], "$type:$_ 3", $ds);
     }
-    for (qw(minex gt greater_than)) { # 3x3 = 9
+    for (qw(minex gt)) { # 2x3 = 6
         invalid($a, [$type => {$_=>$b}], "$type:$_ 1", $ds);
         invalid($b, [$type => {$_=>$b}], "$type:$_ 2", $ds);
         valid($c, [$type => {$_=>$b}], "$type:$_ 3", $ds);
     }
-    for (qw(maxex lt less_than)) { # 3x3 = 9
+    for (qw(maxex lt)) { # 2x3 = 6
         valid($a, [$type => {$_=>$b}], "$type:$_ 1", $ds);
         invalid($b, [$type => {$_=>$b}], "$type:$_ 2", $ds);
         invalid($c, [$type => {$_=>$b}], "$type:$_ 3", $ds);
@@ -84,7 +77,7 @@ sub test_min_max($$$$;$) {
     valid($a, [$type => {between=>[$a,$b]}], "$type:between 1", $ds);
     valid($b, [$type => {between=>[$a,$b]}], "$type:between 2", $ds);
     invalid($c, [$type => {between=>[$a,$b]}], "$type:between 3", $ds);
-    # total = 12+12+9+9+3 = 45
+    # total = 6+6+6+6+3 = 27
 }
 
 sub test_len($$$$;$) {

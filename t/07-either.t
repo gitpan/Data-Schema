@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 137;
+use Test::More tests => 17;
 
 use lib './t';
 require 'testlib.pm';
@@ -10,9 +10,9 @@ require 'testlib.pm';
 use_ok('Data::Schema::Type::Either');
 use_ok('Data::Schema');
 
-# 3x9x5=135
+# 3x1x5=15
 for my $type (qw(either or any)) {
-    for (qw(alternatives alternative alt alts choice choices schema schemas of)) {
+    for (qw(of)) {
         my $sch = [$type => {$_ => [ [int=>{divisible_by=>2}], [int=>{divisible_by=>7}] ]}];
 
         valid(undef, $sch, "$_ undef");

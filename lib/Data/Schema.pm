@@ -14,11 +14,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -46,29 +46,50 @@ our $VERSION = '0.03';
 
 =head1 DESCRIPTION
 
-NOTE: THIS IS A PRELIMINARY RELEASE. I have pinned down more or less the general
-code structure, user interface, and schema syntax which I want, as well as
-implemented a fairly complete set of types and type attributes. Also you already
-can create new types by using schema or by writing Perl type handlers. In short,
-it's already usable in term of validation task (and I am about to use it in
-production code). However there are other stuffs like handling of default
-values, variable substitution, filters, etc. which will be implemented in future
-releases.
+NOTE: THIS IS A PRELIMINARY RELEASE. I have pinned down more or less
+the general code structure, user interface, and schema syntax which I
+want, as well as implemented a fairly complete set of types and type
+attributes. Also you already can create new types by using schema or
+by writing Perl type handlers. In short, it's already usable in term
+of validation task (and I am about to use it in production
+code). However there are other "standard" stuffs like handling of
+default values and filters which will be implemented in future
+releases. I am also planning more advanced things like variable
+substitution, conditionals, etc. but will need to think more about the
+syntax.
 
-There are already a lot of data validation modules on CPAN. However, most of
-them do not validate nested data structures. And of the rest, either I am not
+There are already a lot of data validation modules on CPAN. However,
+most of them do not validate nested data structures. Many seem to
+focus only on "form" (which is usually presented as shallow hash in
+Perl).
+
+And of the rest which do nested data validation, either I am not
 really fond of the syntax, or the validator/schema system is not
-simple/flexible/etc enough for my taste. Thus Data::Schema (DS) is born.
+simple/flexible/etc enough for my taste. For example, other data
+validation modules might require you to write:
 
-With DS, you validate a nested data structure with a schema, which is also a
-nested data structure. This makes the schema more easily reusable in other
-languages. Also, in DS you can define new types (or subtypes, actually) using
-schema itself. This makes your validation "routine" even more reusable.
+ { type => "int" }
 
-Potential application of DS: validating configuration, function parameters,
-command line arguments, etc.
+just for validating a measly little int with no other requirements at
+all. I find this rather annoying. I want to be able to just say:
 
-To get started, see L<Data::Schema::Manual::Basics>.
+ "int"
+
+And thus Data::Schema (DS) is born.
+
+With DS, you validate a nested data structure with a schema, which is
+also a nested data structure. But simpler cases will only require you
+to write a simple schema, like just a string "int" above.
+
+Another design consideration for DS is, I want to maximize reusability
+of my schemas. And thus DS allows you to define schemas in terms of
+other schemas (called "schema type"), and your schemas can be
+"require"-d from Perl variables or YAML files.
+
+Potential application of DS: validating configuration, function
+parameters, command line arguments, etc.
+
+To get started, see L<Data::Schema::Manual::Tutorial>.
 
 =head1 FUNCTIONS
 
@@ -696,9 +717,54 @@ errmsg attribute suffix is used. For example, if schema is:
 then your function will be called with 'alphanums_only' as the argument.
 
 
+=head2 PERFORMANCE NOTES
+
+The way the code is written & structured (e.g. it uses Moose,
+validation involves a relatively high number of method calls, etc.) it
+is probably slower than other data validation modules. However, at
+this state the code has not been profiled and optimized.
+
+To give a rough picture, here's how DS 0.03 fares on my Athlon 64 X2
+5000+ (which I think is still a fairly decent box in 2009). Perl
+5.10.0, Moose 0.72.
+
+1. Using the simplest case:
+
+ $validator->validate(1, "int")
+
+the speed is around 14,000 validations per second.
+
+2. Using the dice throws example (see DSM::Tutorial):
+
+ $validator->validate([1,2,3,4,5,6,[1,1],[1,2],[1,3],[1,4]], $schema)
+
+the speed is around 150/sec.
+
+3. Using the dice throws example, but moving all subschemas to a hash
+and using DSP::LoadSchema::Hash to load it, the speed is around
+190/sec.
+
+4. Using a fairly complex schema, XXX.
+
+With this kind of performance you might want to reconsider using DS
+inside functions that are called very frequently (like hundreds or
+thousands of times per second). But I think DS should be fine for CGI
+applications or for command line argument checking and I will not be
+focusing on performance for the time being.
+
+Some tips on performance:
+
+1. move subschemas out;
+
+2. keep schema simple;
+
+3. write heavy-duty validation logic in Perl (e.g. using new type
+handler and/or type attribute).
+
+
 =head1 SEE ALSO
 
-L<Data::Schema::Manual::Basics>,
+L<Data::Schema::Manual::Tutorial>,
 L<Data::Schema::Manual::Schema>,
 L<Data::Schema::Manual::TypeHandler>,
 L<Data::Schema::Manual::Plugin>

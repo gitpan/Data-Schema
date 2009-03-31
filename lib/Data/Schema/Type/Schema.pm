@@ -30,8 +30,6 @@ This is the type handler that makes a schema available as type in other
 schemas. What this basically does is that you can reuse a schema in other
 schemas.
 
-See L<Data::Schema::Manual::Basics> for an explanation of schema as types.
-
 To load schemas, either from a hash or YAML files, see
 L<Data::Schema::Plugin::LoadSchema::Hash> or
 L<Data::Schema::Plugin::LoadSchema::YAMLFile>.
@@ -85,6 +83,10 @@ sub handle_type {
 
 The type attributes available are whatever attributes are available for the base
 type.
+
+=head1 SEE ALSO
+
+L<Data::Schema::Manual::Schema>
 
 =head1 AUTHOR
 

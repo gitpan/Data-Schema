@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 117;
+use Test::More tests => 63;
 
 use lib './t';
 require 'testlib.pm';
@@ -20,5 +20,5 @@ invalid({}, 'float', 'hash');
 
 valid(undef, 'float', 'undef');
 
-test_is_isnt_oneof('float', 1, -2.1, 3.1, -4.1); # 62
-test_min_max('float', -4.1, 5.1, 10.1); # 45
+test_is_isnt_oneof('float', 1, -2.1, 3.1, -4.1); # 26
+test_min_max('float', -4.1, 5.1, 10.1); # 27

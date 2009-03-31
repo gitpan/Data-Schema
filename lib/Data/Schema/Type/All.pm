@@ -44,15 +44,13 @@ sub cmp {
 
 =head1 TYPE ATTRIBUTES
 
-=head2 schemas => [schema1, schema2, ...]
+=head2 of => [schema1, schema2, ...]
 
 Specify the schema(s), where the value will need to be valid to all of them.
 
-Synonym: schema, of
-
 =cut
 
-sub handle_attr_schemas {
+sub handle_attr_of {
     my ($self, $data, $arg) = @_;
 
     if (ref($arg) ne 'ARRAY') {
@@ -77,10 +75,6 @@ sub handle_attr_schemas {
     }
     !$has_err;
 }
-
-# aliases
-sub handle_attr_schema { handle_attr_schemas(@_) }
-sub handle_attr_of { handle_attr_schemas(@_) }
 
 =head1 AUTHOR
 

@@ -14,7 +14,7 @@ This is the handler for arrays (or arrayrefs, to be exact).
 
 Example schema (in YAML syntax):
 
- [array, { minlen=>1, maxlen=>3, elem_regex_schema=>{'.*'=>int} }]
+ [array, { minlen=>1, maxlen=>3, elem_regex=>{'.*'=>int} }]
 
 The above schema says that the array must have one to three elements, and all
 elements must be integers.
@@ -161,27 +161,27 @@ sub handle_attr_unique {
     1;
 }
 
-=head2 elems_schema => [SCHEMA_FOR_FIRST_ELEMENT, SCHEMA_FOR_SECOND_ELEM, ...]
+=head2 elements => [SCHEMA_FOR_FIRST_ELEMENT, SCHEMA_FOR_SECOND_ELEM, ...]
 
 Requires that each element of the array validates to the specified schemas.
 
-Synonyms: elems, elements, elem_schema, element_schema, elements_schema
+Synonyms: element, elems, elem
 
 Example (in YAML):
 
- [array, {elems_schema: [ int, str, [int, {min: 0}] ]}]
+ [array, {elements: [ int, str, [int, {min: 0}] ]}]
 
 The above example states that the array must have an int as the first element,
 string as the second, and positive integer as the third.
 
 =cut
 
-sub handle_attr_elems_schema {
+sub handle_attr_elements {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     if (ref($arg) ne 'ARRAY') {
-        $self->validator->log_error("schema error: elems_schema must be array");
+        $self->validator->log_error("schema error: `elements' attribute must be array");
         return;
     }
 
@@ -200,17 +200,15 @@ sub handle_attr_elems_schema {
 }
 
 # aliases
-sub handle_attr_elems { handle_attr_elems_schema(@_) }
-sub handle_attr_elements { handle_attr_elems_schema(@_) }
-sub handle_attr_elem_schema { handle_attr_elems_schema(@_) }
-sub handle_attr_element_schema { handle_attr_elems_schema(@_) }
-sub handle_attr_elements_schema { handle_attr_elems_schema(@_) }
+sub handle_attr_element { handle_attr_elements(@_) }
+sub handle_attr_elems { handle_attr_elements(@_) }
+sub handle_attr_elem { handle_attr_elements(@_) }
 
-=head2 all_elems_schema => SCHEMA
+=head2 all_elements => SCHEMA
 
 Requires that every element of the array validates to the specified schema.
 
-Synonyms: all_elements_schema, all_element_schema, of
+Synonyms: of, all_element, all_elems, all_elem
 
 Example (in YAML):
 
@@ -220,7 +218,7 @@ The above specifies an array of ints.
 
 =cut
 
-sub handle_attr_all_elems_schema {
+sub handle_attr_all_elements {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
@@ -239,26 +237,23 @@ sub handle_attr_all_elems_schema {
 }
 
 # aliases
-sub handle_attr_all_elements_schema { handle_attr_all_elems_schema(@_) }
-sub handle_attr_all_element_schema { handle_attr_all_elems_schema(@_) }
-sub handle_attr_of { handle_attr_all_elems_schema(@_) }
+sub handle_attr_all_element { handle_attr_all_elements(@_) }
+sub handle_attr_all_elems { handle_attr_all_elements(@_) }
+sub handle_attr_all_elem { handle_attr_all_elements(@_) }
+sub handle_attr_of { handle_attr_all_elements(@_) }
 
-=head2 elems_regex_schema => {REGEX=>SCHEMA, REGEX2=>SCHEMA2, ...]
+=head2 elements_regex => {REGEX=>SCHEMA, REGEX2=>SCHEMA2, ...]
 
-Similar to B<elems_schema>, but instead of specifying schema for each
+Similar to B<elements>, but instead of specifying schema for each
 element, this attribute allows us to specify using regexes which elements we
 want to specify schema for.
 
-Synonyms: elems_regexp_schema, elem_regex_schema, element_regex_schema,
-elements_regex_schema, elem_regexp_schema, element_regexp_schema,
-elements_regexp_schema (Wow, that's a lot of synonyms. But then I just hate my
-code failing just because I can't remember whether it's singular or plural,
-whether it's regex or regexp, etc. Creating synonyms is cheap anyway.)
+Synonyms: element_regex, elems_regex, elem_regex
 
 Example (in YAML):
 
  - array
- - elems_regex_schema:
+ - elements_regex:
      '[02468]$': [int, {minex: 0}]
      '[13579]$': [int, {maxex: 0}]
 
@@ -267,12 +262,12 @@ negative integer interspersed, e.g. [1, -2, 3, -1, ...].
 
 =cut
 
-sub handle_attr_elems_regex_schema {
+sub handle_attr_elements_regex {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     if (ref($arg) ne 'HASH') {
-        $self->validator->log_error("schema error: elems_regex_schema must be hash");
+        $self->validator->log_error("schema error: `elements_regex' attribute must be hash");
         return;
     }
 
@@ -301,13 +296,9 @@ sub handle_attr_elems_regex_schema {
 }
 
 # aliases
-sub handle_attr_elems_regexp_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_elem_regex_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_element_regex_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_elements_regex_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_elem_regexp_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_element_regexp_schema { handle_attr_elems_regex_schema(@_) }
-sub handle_attr_elements_regexp_schema { handle_attr_elems_regex_schema(@_) }
+sub handle_attr_element_regex { handle_attr_elements_regex(@_) }
+sub handle_attr_elems_regex { handle_attr_elements_regex(@_) }
+sub handle_attr_elem_regex { handle_attr_elements_regex(@_) }
 
 sub _for_each_elem {
     my ($self, $data, $arg, $checkfail_sub) = @_;

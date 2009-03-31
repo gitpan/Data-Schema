@@ -121,15 +121,15 @@ sub handle_attr_len_between {
 # aliases
 sub handle_attr_length_between { handle_attr_len_between(@_) }
 
-=head2 regex => REGEX
+=head2 match => REGEX
 
 Require that the string match a regular expression.
 
-Synonyms: regexp
+Synonyms: matches
 
 =cut
 
-sub handle_attr_regex {
+sub handle_attr_match {
     my ($self, $data, $arg) = @_;
     if ($data !~ qr/$arg/) {
         $self->validator->log_error("must match regex $arg");
@@ -139,17 +139,17 @@ sub handle_attr_regex {
 }
 
 # aliases
-sub handle_attr_regexp { handle_attr_regex(@_) }
+sub handle_attr_matches { handle_attr_match(@_) }
 
-=head2 not_regex => REGEX
+=head2 not_match => REGEX
 
-The opposite of B<regex>, require that the string not match a regular expression.
+The opposite of B<match>, require that the string not match a regular expression.
 
-Synonyms: not_regexp
+Synonyms: not_matches
 
 =cut
 
-sub handle_attr_not_regex {
+sub handle_attr_not_match {
     my ($self, $data, $arg) = @_;
     if ($data =~ qr/$arg/) {
         $self->validator->log_error("must not match regex $arg");
@@ -159,7 +159,7 @@ sub handle_attr_not_regex {
 }
 
 # aliases
-sub handle_attr_not_regexp { handle_attr_not_regex(@_) }
+sub handle_attr_not_matches { handle_attr_not_match(@_) }
 
 =head1 AUTHOR
 

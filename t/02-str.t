@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 162;
+use Test::More tests => 108;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -28,14 +28,14 @@ valid('abc', [str => {required => 1}], 'required 2');
 
 test_len('str', 'a', 'ab', 'abc'); # 36
 
-# regex
-for (qw(regex regexp)) {
+# match
+for (qw(match matches)) {
     valid('12', [str => {$_=>'^\d+$'}], "$_ 1");
     invalid('12a', [str => {$_=>'^\d+$'}], "$_ 2");
     invalid('12', [str => {"not_$_"=>'^\d+$'}], "not_$_ 1");
     valid('12a', [str => {"not_$_"=>'^\d+$'}], "not_$_ 2");
 }
 
-test_is_isnt_oneof('str', 'a', 'b', 'c', 'd'); # 62
+test_is_isnt_oneof('str', 'a', 'b', 'c', 'd'); # 26
 
-test_min_max('str', 'a', 'b', 'c'); # 45
+test_min_max('str', 'a', 'b', 'c'); # 27
