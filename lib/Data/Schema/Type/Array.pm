@@ -14,7 +14,7 @@ This is the handler for arrays (or arrayrefs, to be exact).
 
 Example schema (in YAML syntax):
 
- [array, { minlen=>1, maxlen=>3, elem_regex=>{'.*'=>int} }]
+ [array, { minlen: 1, maxlen: 3, elem_regex: {'.*': int} }]
 
 The above schema says that the array must have one to three elements, and all
 elements must be integers.
@@ -225,11 +225,9 @@ sub handle_attr_all_elements {
     push @{ $self->validator->data_pos }, 0;
     for my $i (0..@$data-1) {
         $self->validator->data_pos->[-1] = $i;
-        push @{ $self->validator->schema_pos }, $i;
         if (!$self->validator->_validate($data->[$i], $arg)) {
             $has_err++;
         }
-        pop @{ $self->validator->schema_pos };
         last if $self->validator->too_many_errors;
     }
     pop @{ $self->validator->data_pos };
@@ -241,6 +239,64 @@ sub handle_attr_all_element { handle_attr_all_elements(@_) }
 sub handle_attr_all_elems { handle_attr_all_elements(@_) }
 sub handle_attr_all_elem { handle_attr_all_elements(@_) }
 sub handle_attr_of { handle_attr_all_elements(@_) }
+
+=head2 some_of => [[TYPE, MIN, MAX], [TYPE, MIN, MAX], ...]
+
+Requires that some elements be of certain type. TYPE is the name of the type,
+MIN and MAX are numbers, -1 means unlimited.
+
+Example (in YAML):
+
+ [array, {some_of: [ [int, 1, -1], [str, 3, 3], [float, 0, 1] ]}]
+
+The above requires that the array contains at least one integer, exactly three
+strings, and at most one floating number.
+
+=cut
+
+sub handle_attr_some_of {
+    my ($self, $data, $arg) = @_;
+    my @num_valid = map {0} 1..@$arg;
+    my $ds = $self->validator;
+
+    $ds->save_validation_state();
+    my $j = 0;
+    for my $r (@$arg) {
+        for my $i (0..@$data-1) {
+            $ds->init_validation_state();
+            $ds->_validate($data->[$i], $r->[0]);
+            $num_valid[$j]++ unless @{ $ds->errors };
+        }
+        $j++;
+    }
+    $ds->restore_validation_state();
+
+    my $has_err = 0;
+    push @{ $ds->schema_pos }, 0;
+    $j = 0;
+    for my $r (@$arg) {
+        $ds->schema_pos->[-1] = $j;
+        my $m = $num_valid[$j];
+        my $a = $r->[1];
+        my $b = $r->[2];
+        if ($a != -1 && $m < $a) {
+            my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
+            $ds->log_error("array must contain at least $a elements of type $x");
+            $has_err++;
+            last if $ds->too_many_errors;
+        }
+        if ($b != -1 && $m > $b) {
+            my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
+            $ds->log_error("array must contain at most $b elements of type $x");
+            $has_err++;
+            last if $ds->too_many_errors;
+        }
+        $j++;
+    }
+    pop @{ $ds->schema_pos };
+
+    !$has_err;
+}
 
 =head2 elements_regex => {REGEX=>SCHEMA, REGEX2=>SCHEMA2, ...]
 

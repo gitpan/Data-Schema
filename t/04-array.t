@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 159;
+use Test::More tests => 169;
 
 use_ok('Data::Schema::Type::Array');
 use_ok('Data::Schema');
@@ -33,6 +33,26 @@ for (qw(all_elements all_element all_elems all_elem of)) {
     valid([], $sch, "$_ 1");
     valid([1, 0, -1], $sch, "$_ 2");
     invalid([1, "a"], $sch, "$_ 3");
+}
+
+# some_of 1x10=10
+for (qw(some_of)) {
+    # at least one int, exactly 2 strings, at most one array. note: str is also int
+    my $sch = [array=>{$_=>[ [int=>1,-1], [str=>2,2], [array=>0,1] ]}];
+    invalid([], $sch, "$_ 1");
+
+    valid([1, "a", []], $sch, "$_ 2");
+
+    valid([1, 2, []], $sch, "$_ 3");
+    valid([1, 2], $sch, "$_ 4");
+    valid([1, "a"], $sch, "$_ 5");
+
+    invalid(["a", "a", []], $sch, "$_ 6"); # too few int
+    invalid([1, []], $sch, "$_ 7"); # too few str
+    invalid([1, 1, "a", []], $sch, "$_ 8"); # too many str
+    invalid([1, "a", [], []], $sch, "$_ 9"); # too many array
+
+    invalid([], $sch, "$_ 10");
 }
 
 # elements 4x12 = 48

@@ -4,6 +4,10 @@ package Data::Schema::Type::Hash;
 
 Data::Schema::Type::Hash - Type handler for hash ('hash')
 
+=head1 SYNOPSIS
+
+ use Data::Schema;
+
 =head1 DESCRIPTION
 
 This is the type handler for type 'hash'.
@@ -200,7 +204,7 @@ Synonyms: allowed_keys
 
 For example (in YAML):
 
- [hash, {allowed_keys: [name age address]}]
+ [hash, {allowed_keys: [name, age, address]}]
 
 This specifies that only keys 'name', 'age', 'address' are allowed (but none are
 required).
@@ -211,10 +215,11 @@ sub handle_attr_keys_one_of {
     my ($self, $data, $arg) = @_;
     $self->_for_each_key($data, $arg,
                          sub {
+                            # XXX early exit
                             (grep {$_[0] eq $_} @$arg) ?
                                 '' :
                                 (@$arg ==1 ?
-                                   "key must be $arg" :
+                                   "key must be $arg->[0]" :
                                  @$arg < 10 ?
                                    "key must be one of @$arg" :
                                    "key does not belong to list of valid keys")
@@ -223,6 +228,37 @@ sub handle_attr_keys_one_of {
 
 # aliases
 sub handle_attr_allowed_keys { handle_attr_keys_one_of(@_) }
+
+=head2 values_one_of => [VALUE, ...]
+
+Specify that all hash values must belong to a list of specified values.
+
+Synonyms: allowed_values
+
+For example (in YAML):
+
+ [hash, {allowed_values: [1, 2, 3, 4, 5]}]
+
+=cut
+
+sub handle_attr_values_one_of {
+    my ($self, $data, $arg) = @_;
+    $self->_for_each_key($data, $arg,
+                         sub {
+                            # XXX early exit
+                            (grep {ref($_[1]) ? ($self->cmp($_[1], $_) == 0) : ($_[1] eq $_)} @$arg) ?
+                                '' :
+                                # XXX complex value must be dumped
+                                (@$arg ==1 ?
+                                   "value must be $arg->[0]" :
+                                 @$arg < 10 ?
+                                   "value must be one of @$arg" :
+                                   "values does not belong to list of valid values")
+                         });
+}
+
+# aliases
+sub handle_attr_allowed_values { handle_attr_values_one_of(@_) }
 
 =head2 required_keys => [KEY1, KEY2. ...]
 
@@ -305,21 +341,47 @@ sub handle_attr_keys {
     !$has_err;
 }
 
-=head2 all_keys => SCHEMA1
+=head2 keys_of => SCHEMA
 
-Specify schema for all hash keys (hash values, actually).
-
-Synonyms: of
+Specify a schema for all hash keys.
 
 For example (in YAML):
 
- [hash, {of: int}]
+ [hash, {keys_of: int}]
 
-This specifies that all hash values for must be ints.
+This specifies that all hash keys must be ints.
 
 =cut
 
-sub handle_attr_all_keys {
+sub handle_attr_keys_of {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    push @{ $self->validator->data_pos }, '';
+    foreach my $k (keys %$data) {
+        $self->validator->data_pos->[-1] = $k;
+        if (!$self->validator->_validate($k, $arg)) {
+            $has_err++;
+        }
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+=head2 values_of => SCHEMA
+
+Specify a schema for all hash values.
+
+For example (in YAML):
+
+ [hash, {values_of: int}]
+
+This specifies that all hash values must be ints.
+
+=cut
+
+sub handle_attr_values_of {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
@@ -335,8 +397,102 @@ sub handle_attr_all_keys {
     !$has_err;
 }
 
-# aliases
-sub handle_attr_of { handle_attr_all_keys(@_) }
+=head2 of => [SCHEMA_FOR_KEYS, SCHEMA_FOR_VALUES]
+
+Specify a pair of schemas for all keys and values.
+
+For example (in YAML):
+
+ [hash, {of: [int, int]}]
+
+This specifies that all hash keys as well as values must be ints.
+
+=cut
+
+sub handle_attr_of {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    push @{ $self->validator->data_pos }, '';
+    foreach my $k (keys %$data) {
+        $self->validator->data_pos->[-1] = $k;
+        if (!$self->validator->_validate($k, $arg->[0])) {
+            $has_err++;
+        }
+        last if $self->validator->too_many_errors;
+        if (!$self->validator->_validate($data->{$k}, $arg->[1])) {
+            $has_err++;
+        }
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+=head2 some_of => [[KEY_SCHEMA, VALUE_SCHEMA, MIN, MAX], [KEY_SCHEMA2, VALUE_SCHEMA2, MIN2, MAX2], ...]
+
+Requires that some elements be of certain type. TYPE is the name of the type,
+MIN and MAX are numbers, -1 means unlimited.
+
+Example (in YAML):
+
+ [array, {some_of: [ [int, 1, -1], [str, 3, 3], [float, 0, 1] ]}]
+
+The above requires that the array contains at least one integer, exactly three
+strings, and at most one floating number.
+
+=cut
+
+sub handle_attr_some_of {
+    my ($self, $data, $arg) = @_;
+    my @num_valid = map {0} 1..@$arg;
+    my $ds = $self->validator;
+
+    $ds->save_validation_state();
+    my $j = 0;
+    for my $r (@$arg) {
+        for my $k (keys %$data) {
+            my $v = $data->{$k};
+            $ds->init_validation_state();
+            $ds->_validate($k, $r->[0]);
+            my $k_ok = !@{ $ds->errors };
+            $ds->init_validation_state();
+            $ds->_validate($v, $r->[1]);
+            my $v_ok = !@{ $ds->errors };
+            $num_valid[$j]++ if $k_ok && $v_ok;
+        }
+        $j++;
+    }
+    $ds->restore_validation_state();
+
+    my $has_err = 0;
+    push @{ $ds->schema_pos }, 0;
+    $j = 0;
+    for my $r (@$arg) {
+        $ds->schema_pos->[-1] = $j;
+        my $m = $num_valid[$j];
+        my $a = $r->[2];
+        my $b = $r->[3];
+        if ($a != -1 && $m < $a) {
+            my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
+            my $y = !ref($r->[1]) ? $r->[1] : ref($r->[1]) eq 'ARRAY' ? "[$r->[1][0] => ...]" : "{type=>$r->[1]{type}, ...}";
+            $ds->log_error("hash must contain at least $a pairs of types $x => $y");
+            $has_err++;
+            last if $ds->too_many_errors;
+        }
+        if ($b != -1 && $m > $b) {
+            my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
+            my $y = !ref($r->[1]) ? $r->[1] : ref($r->[1]) eq 'ARRAY' ? "[$r->[1][0] => ...]" : "{type=>$r->[1]{type}, ...}";
+            $ds->log_error("hash must contain at most $b pairs of types $x => $y");
+            $has_err++;
+            last if $ds->too_many_errors;
+        }
+        $j++;
+    }
+    pop @{ $ds->schema_pos };
+
+    !$has_err;
+}
 
 =head2 keys_regex => {REGEX1=>SCHEMA1, REGEX2=>SCHEMA2, ...}
 
@@ -412,10 +568,6 @@ sub handle_attr_values_not_match {
                                 "$_[1] must not match regex $_[2]"
                          });
 }
-
-=head1 SYNOPSIS
-
- use Data::Schema;
 
 =head1 AUTHOR
 

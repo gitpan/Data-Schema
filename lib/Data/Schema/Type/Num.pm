@@ -4,6 +4,10 @@ package Data::Schema::Type::Num;
 
 Data::Schema::Type::Num - Base type handler for numbers
 
+=head1 SYNOPSIS
+
+ # see subclasses, like DST::Int or DST::Float
+
 =head1 DESCRIPTION
 
 This is base class for number types, like 'int' and 'float'.
@@ -27,10 +31,6 @@ sub handle_pre_check_attrs {
     }
     1;
 }
-
-=head1 SYNOPSIS
-
- # see subclasses, like DST::Int or DST::Float
 
 =head1 AUTHOR
 

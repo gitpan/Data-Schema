@@ -1,12 +1,16 @@
 Revision history for Data-Schema
 
-0.01    2009-03-29
-        First release
+0.05    2009-06-13
+        - changed type attributes for hash: add (keys_of, values_of,
+          allowed_values/values_one_of), remove (all_keys), change
+          (of)
+        - new attributes for array & hash: some_of
+        - doc: some more work & fixes on documentation
+        - bug fixes
 
-0.02    2009-03-30
-        - new feature: add new attribute for array: unique
-        - new feature: add attribute alias for Base's one_of: enum
-        - doc: fix typos
+0.04    2009-03-31
+        - doc: some more work on documentation
+        - change: remove some attribute synonyms, rename some
 
 0.03    2009-03-30
         - rename from Schema-Nested to Data-Schema
@@ -14,6 +18,10 @@ Revision history for Data-Schema
         - new config: gettext_function
         - doc: improve & reorganize documentation
 
-0.04    2009-03-31
-        - doc: some more work on documentation
-        - change: remove some attribute synonyms, rename some
+0.02    2009-03-30
+        - new feature: add new attribute for array: unique
+        - new feature: add attribute alias for Base's one_of: enum
+        - doc: fix typos
+
+0.01    2009-03-29
+        First release

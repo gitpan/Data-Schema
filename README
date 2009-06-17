@@ -3,42 +3,31 @@ Data-Schema
 Data::Schema lets you validate nested data structures with a nested
 structure as a schema.
 
-An example in YAML:
+Some examples:
 
- # schema
- - hash
- - valid_keys:
-   name: [str, {required: true}]
-   age: [int, {min: 18, required: true}]
-   address:
-     - hash
-     - valid_keys:
-       street1: [str, {required: true}]
-       street2: str
-       city: str
-       province: str
-       postalcode: [str, {regex: '^\w{5,14}$'}]
-       country: [str: {default: Indonesia}]
+ "int"
 
- # valid data
- name: Hasan
- age: 32
+The above schema requires that data is an integer.
 
- # invalid data (missing required key: age)
- name: Hasan
- address:
-   street1: Jl Kuta 10
-   city: Denpasar
-   province: Bali
+ [int => {min=>0, max=>100}]
 
- # invalid data (invalid postal code)
- name: Tim
- age: 45
- address:
-   street1: 111th Match Rd
-   city: London
-   postalcode: X-1234
-   country: England
+The above schema requires that data is an integer between 0 and 100.
+
+ {
+   def => {
+     even => [int => {divisible_by=>2}],
+     odd  => [int => {mod=>[2, 1]}],
+     my_array => [any => {of=>[qw/even odd/]}],
+   },
+   type => "my_array"
+ }
+
+The above schema requires that data is an array of just even numbers
+OR just odd numbers.
+
+As you can see, the schema can be very simple or complex depending on
+your requirements.
+
 
 INSTALLATION
 

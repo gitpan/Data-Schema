@@ -49,8 +49,6 @@ themselves (using, why, DS schemas of course).
 
 =head1 WRITING SCHEMAS
 
-=head2 First Form (scalar)
-
 The simplest form of a schema is just a string specifying a type:
 
  TYPE
@@ -62,8 +60,6 @@ Example:
 or
 
  hash
-
-=head2 Second Form (array)
 
 If you want to restrict the values that the data can contain, you can add one or
 more type attributes. The schema becomes a two-element array with the type in
@@ -83,18 +79,7 @@ For a list of available types and their respective attributes, see the
 documentation for B<Data::Schema::Type::*> modules. There are hash, array,
 int, float, bool, str, and object types, among others.
 
-You can write your own type in Perl. It's pretty simple. See
-L<Data::Schema::Manual::TypeHandler>. Or you can also write new types in
-schema itself. See B<SCHEMA AS TYPE> section below.
-
-=head2 Third Form (hash)
-
-There is also the third form:
-
- { type: TYPE, attrs: ATTRIBUTES, ... }
-
-which allows for more complex stuffs, but we do not need to write in
-this form unless we want to define subschemas (a.k.a schema types).
+If you want, you can even write your own type in Perl.
 
 
 =head1 VALIDATING USING DS
@@ -144,18 +129,53 @@ Refer to L<Data::Schema> for details on available configuration and other
 methods.
 
 
-=head1 SCHEMA AS TYPE
+=head1 ANY AND ALL
 
-In DS, you can also write new types using schema itself. In other
-words, you can define schemas in terms of other schemas.
+Schemas can be as simple or as complex as you want.
 
-You can put these schema types in another schema (in which you might
-call the schema types as "subschemas"), or in a hash, or in YAML
-files.
+To require that data be of some type OR of some other type, you can write
+something like this:
 
-=head2 Schema types inside schema
+ [
+  "any",
+  of => ["array", "hash"],
+ ]
 
-Example of putting schema types (subschemas) in another schema:
+This says that your data can be an array(ref) or a hash(ref). B<any> is some
+"virtual" type that allows you to specifying several alternatives. Another
+example:
+
+ [
+  "any",
+  of => [
+    [int => {min=>1, max=>10}],
+    [int => {min=>101, max=>110}],
+    [int => {min=>1001, max=>1010}],
+  ]
+ ]
+
+The above says that you want an int between 1-10, OR between 101-110, OR between
+1001-1010.
+
+There is also the B<all> virtual type that requires the data to satisfies ALL
+requirements instead of just one. For example:
+
+ [
+  "all",
+  of => [
+    [string => {match=>'^\w+$'}],
+    [string => {match=>'^(.)\1$'}],
+    [string => {match=>'^[aeiou]$'}],
+  ]
+ ]
+
+The above says that you need a string which is composed of alphanumeric
+characters only and it has a sequence of two identical characters, and also that
+it has a vowel.
+
+=head2 DEFINING SCHEMAS IN TERMS OF OTHER SCHEMAS
+
+Schemas can actually be defined in terms of other schemas. For example:
 
  my $schema = {
      def => {
@@ -188,10 +208,11 @@ Of course you can also write the schema in "one go":
 but some of us might find breaking down a complex schema into pieces
 help in better understanding it.
 
-=head2 Putting schema types in a hash
 
-Aside from putting the schema types in the schema itself, you can also
-put them in a separate hash:
+=head1 EXTERNAL SCHEMAS
+
+Aside from putting subschemas in a schema, you can also put schemas in a separate
+hash:
 
  my $schema_types = {
      even          => [int   => {divisible_by => 2}],
@@ -207,7 +228,7 @@ put them in a separate hash:
               line2    =>  "str",
               city     => ["str", {required=>1}],
               province => ["str", {required=>1}],
-              country  => ["str", {regex=>'/^[A-Z]{2}$/', required=>1}],
+              country  => ["str", {match=>'/^[A-Z]{2}$/', required=>1}],
               postcode => ["str", {minlen=>4, maxlen=>15}],
           }
          }
@@ -225,9 +246,7 @@ The above B<address> schema is for validating an address "record" (or
 "form"). There are also other schema types defined in
 B<$schema_types>. They are loaded using DSP::LoadSchema::Hash.
 
-=head2 Putting schema types in YAML files
-
-Another alternative is putting schema types in YAML files.
+Another alternative is putting schemas in YAML files.
 
  # in schemadir/address.yaml
  - hash
@@ -237,7 +256,7 @@ Another alternative is putting schema types in YAML files.
      line2:     str
      city:     [str, {required: 1}]
      province: [str, {required: 1}],
-     country:  [str, {regex: '/^[A-Z]{2}$/', required: 1}]
+     country:  [str, {match: '/^[A-Z]{2}$/', required: 1}]
      postcode: [str, {minlen: 4, maxlen: 15}]
 
  # in schemadir/even.yaml
@@ -260,9 +279,9 @@ For now, please see the B<t/schemas/> directory in the distribution.
 
 =head1 SEE ALSO
 
-L<Data::Schema::Tutorial::Schema>,
-L<Data::Schema::Tutorial::TypeHandler>,
-L<Data::Schema::Tutorial::Plugin>
+L<Data::Schema::Manual::Schema>,
+L<Data::Schema::Manual::TypeHandler>,
+L<Data::Schema::Manual::Plugin>
 
 =head1 AUTHOR
 

@@ -14,11 +14,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -46,50 +46,21 @@ our $VERSION = '0.04';
 
 =head1 DESCRIPTION
 
-NOTE: THIS IS A PRELIMINARY RELEASE. I have pinned down more or less
-the general code structure, user interface, and schema syntax which I
-want, as well as implemented a fairly complete set of types and type
-attributes. Also you already can create new types by using schema or
-by writing Perl type handlers. In short, it's already usable in term
-of validation task (and I am about to use it in production
-code). However there are other "standard" stuffs like handling of
-default values and filters which will be implemented in future
-releases. I am also planning more advanced things like variable
-substitution, conditionals, etc. but will need to think more about the
-syntax.
+Data::Schema (DS) is a schema system for data validation. It lets you write
+schemas as data structures, ranging from very simple (a scalar) to complex
+(nested hashes/arrays) depending on how complex you want your validation to be.
 
-There are already a lot of data validation modules on CPAN. However,
-most of them do not validate nested data structures. Many seem to
-focus only on "form" (which is usually presented as shallow hash in
-Perl).
-
-And of the rest which do nested data validation, either I am not
-really fond of the syntax, or the validator/schema system is not
-simple/flexible/etc enough for my taste. For example, other data
-validation modules might require you to write:
-
- { type => "int" }
-
-just for validating a measly little int with no other requirements at
-all. I find this rather annoying. I want to be able to just say:
-
- "int"
-
-And thus Data::Schema (DS) is born.
-
-With DS, you validate a nested data structure with a schema, which is
-also a nested data structure. But simpler cases will only require you
-to write a simple schema, like just a string "int" above.
-
-Another design consideration for DS is, I want to maximize reusability
-of my schemas. And thus DS allows you to define schemas in terms of
-other schemas (called "schema type"), and your schemas can be
-"require"-d from Perl variables or YAML files.
+Writing schemas as data structures themselves has several advantages. First, it
+is more portable across languages (e.g. using YAML to share schemas between
+Perl, Python, PHP, Ruby). Second, you can validate the schema using the schema
+system itself. Third, it is easy to generate code, help message (e.g. so-called
+"usage" for function/command line script), etc. from the schema.
 
 Potential application of DS: validating configuration, function
 parameters, command line arguments, etc.
 
 To get started, see L<Data::Schema::Manual::Tutorial>.
+
 
 =head1 FUNCTIONS
 
@@ -108,6 +79,7 @@ sub ds_validate {
 my $Merger = new Data::PrefixMerge;
 $Merger->config->{recurse_array} = 1;
 
+
 =head1 ATTRIBUTES
 
 =cut
@@ -117,7 +89,7 @@ has type_handlers => (is => 'rw');
 
 =head2 config
 
-Configuration hashref. See B<CONFIG> section.
+Configuration hashref. See B<CONFIGURATION> section.
 
 =cut
 
@@ -134,6 +106,7 @@ has errors => (is => 'rw');
 has warnings => (is => 'rw');
 has data_pos => (is => 'rw');
 has schema_pos => (is => 'rw');
+
 
 =head1 METHODS
 
@@ -376,9 +349,21 @@ Register a new type, along with a class name (C<$class>) or the actual object
 
 Any object can become a type handler, as long as it has:
 
-* a C<validator()> rw property to store/set validator object;
-* C<handle_type()> method to handle type checking;
-* zero or more C<handle_attr_*()> methods to handle attribute checking.
+=over
+
+=item *
+
+a C<validator()> rw property to store/set validator object;
+
+=item *
+
+C<handle_type()> method to handle type checking;
+
+=item *
+
+zero or more C<handle_attr_*()> methods to handle attribute checking.
+
+=back
 
 See L<Data::Schema::Manual::TypeHandler> for more details on writing a type
 handler.
@@ -415,8 +400,17 @@ become object.
 Any object can become a plugin, you don't need to subclass from anything, as
 long as it has:
 
-* a C<validator()> rw property to store/set validator object;
-* zero or more C<handle_*()> methods to handle some events/hooks.
+=over 4
+
+=item *
+
+a C<validator()> rw property to store/set validator object;
+
+=item *
+
+zero or more C<handle_*()> methods to handle some events/hooks.
+
+=back
 
 See L<Data::Schema::Manual::Plugin> for more details on writing a plugin.
 
@@ -608,10 +602,12 @@ be filled with the details.
 
 sub validate {
     my ($self, $data, $schema) = @_;
+    my $saved_schema = $self->schema;
     $schema ||= $self->schema;
 
     $self->init_validation_state();
     $self->_validate($data, $schema);
+    $self->schema($saved_schema);
 
     # XXX DECISION: only ds_validate() format error and warnings?
 
@@ -679,7 +675,8 @@ sub _validate {
     $self->type_handlers($orig_type_handlers) if $orig_type_handlers;
 }
 
-=head1 CONFIG
+
+=head1 CONFIGURATION
 
 Configuration is set like this:
 
@@ -717,16 +714,47 @@ errmsg attribute suffix is used. For example, if schema is:
 then your function will be called with 'alphanums_only' as the argument.
 
 
+=head1 COMPARISON WITH OTHER DATA VALIDATION MODULES
+
+There are already a lot of data validation modules on CPAN. However, most of
+them do not validate nested data structures. Many seem to focus only on "form"
+(which is usually presented as shallow hash in Perl).
+
+And of the rest which do nested data validation, either I am not really fond of
+the syntax, or the validator/schema system is not simple/flexible/etc enough for
+my taste. For example, other data validation modules might require you to always
+write:
+
+ { type => "int" }
+
+even when all you want is just validating an int with no other extra
+requirements. With DS you can just write:
+
+ "int"
+
+Another design consideration for DS is, I want to maximize reusability of my
+schemas. And thus DS allows you to define schemas in terms of other schemas.
+External schemas can be "require"-d from Perl variables or loaded from YAML
+files.
+
+DS is still in its early phase of development, but I am already starting to use
+it in production. I am quite content with the current syntax, but that doesn't
+mean it won't change in the future. DS can already do decent validation, there
+are already several basic types each with a decent set of attributes. But some
+"standard" stuffs present in other modules are still absent in DS: handling of
+default values and filters. These will be added in future releases along with
+other planned features like variable substitution, interdependency, etc.
+
+
 =head2 PERFORMANCE NOTES
 
-The way the code is written & structured (e.g. it uses Moose,
-validation involves a relatively high number of method calls, etc.) it
-is probably slower than other data validation modules. However, at
-this state the code has not been profiled and optimized.
+The way the code is written & structured (e.g. it uses Moose, validation
+involves a relatively high number of method calls, etc.) it is probably slower
+than other data validation modules. However, at the moment the code has not been
+profiled and optimized.
 
-To give a rough picture, here's how DS 0.03 fares on my Athlon 64 X2
-5000+ (which I think is still a fairly decent box in 2009). Perl
-5.10.0, Moose 0.72.
+To give a rough picture, here's how DS 0.03 fares on my Athlon 64 X2 5000+
+(which I think is still a fairly decent box in 2009). Perl 5.10.0, Moose 0.72.
 
 1. Using the simplest case:
 
@@ -740,17 +768,16 @@ the speed is around 14,000 validations per second.
 
 the speed is around 150/sec.
 
-3. Using the dice throws example, but moving all subschemas to a hash
-and using DSP::LoadSchema::Hash to load it, the speed is around
-190/sec.
+3. Using the dice throws example, but moving all subschemas to a hash and using
+DSP::LoadSchema::Hash to load it, the speed is around 190/sec.
 
 4. Using a fairly complex schema, XXX.
 
-With this kind of performance you might want to reconsider using DS
-inside functions that are called very frequently (like hundreds or
-thousands of times per second). But I think DS should be fine for CGI
-applications or for command line argument checking and I will not be
-focusing on performance for the time being.
+With this kind of performance you might want to reconsider using DS inside
+functions that are called very frequently (like hundreds or thousands of times
+per second). But I think DS should be fine for CGI applications or for command
+line argument checking and I will not be focusing on performance for the time
+being.
 
 Some tips on performance:
 
@@ -758,8 +785,8 @@ Some tips on performance:
 
 2. keep schema simple;
 
-3. write heavy-duty validation logic in Perl (e.g. using new type
-handler and/or type attribute).
+3. write heavy-duty validation logic in Perl (e.g. using new type handler and/or
+type attribute).
 
 
 =head1 SEE ALSO

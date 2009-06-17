@@ -32,8 +32,7 @@ Data::Schema::Plugin::LoadSchema::YAMLFile - Plugin to load schemas from YAML fi
 
 Return schema loaded from YAML file, or C<undef> if not found. List of
 directories to search for is specified in validator's C<schema_search_path>
-config variable. "$name", "$name.{schema,sn,yaml,yml}" files will be searched
-for.
+config variable. "$name", "$name.{yaml,yml}" files will be searched for.
 
 =cut
 
@@ -49,7 +48,7 @@ sub get_schema {
             $path = $path0;
             #print "searching for $path ...\n";
             (-f $path) and do { $found++; last };
-            for my $ext (qw(schema sn yaml yml)) {
+            for my $ext (qw(yaml yml)) {
                 $path = "$path0.$ext";
                 #print "searching for $path ...\n";
                 (-f $path) and do { $found++; last };

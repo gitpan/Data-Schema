@@ -5,14 +5,14 @@ Data::Schema::Manual::TypeHandler - Writing type handler for Data::Schema
 
 =head1 OVERVIEW
 
-This document is explains how to write type handler using Perl.
+This document explains how to write type handler using Perl.
 
 
 =head1 INTRODUCTION
 
-Type handler allow DS to recognize and validate a new type.
+Type handler allows DS to recognize and validate a new type.
 
-Any object can become a type handler as long as it satisfies these requirements.
+Any object can become a type handler as long as it satisfies these requirements:
 
 1. It has a validator([$validator]) method to retrieve/set the validator
 property.
