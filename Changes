@@ -1,5 +1,9 @@
 Revision history for Data-Schema
 
+0.06    2009-06-22
+        - use Data::PrefixMerge 0.05
+        - allow merge prefix on first attrhash (for KEEP mode merges)
+        
 0.05    2009-06-13
         - changed type attributes for hash: add (keys_of, values_of,
           allowed_values/values_one_of), remove (all_keys), change

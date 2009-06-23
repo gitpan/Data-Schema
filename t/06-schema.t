@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 29;
+use Test::More tests => 28;
 use Test::Exception;
 use FindBin '$Bin';
 
@@ -22,7 +22,6 @@ $ds->config->{schema_search_path} = ["$Bin/schemas"];
 dies_ok { $ds->validate(1, 'invalid_unknown_base') } 'schema type: unknown base type';
 dies_ok { $ds->validate(1, 'invalid_recursive') } 'schema type: recursive';
 dies_ok { $ds->validate(1, 'invalid_circular') } 'schema type: circular';
-dies_ok { $ds->validate(1, 'invalid_merge_first_attrhash') } 'schema type: merge first attrhash';
 
 valid('1.2.3.4', 'ip', 'basic 1', $ds);
 invalid('1.2.3', 'ip', 'basic 2', $ds);

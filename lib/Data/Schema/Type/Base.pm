@@ -88,7 +88,7 @@ sub handle_type {
     for my $attr_hash (@$attr_hashes) {
         push @{ $validator->schema_pos }, $i, '';
         foreach my $k (keys %$attr_hash) {
-            my ($name, $suffix) = $k =~ /^([a-z][a-z0-9_]*)\.?(.*)$/;
+            my ($prefix, $name, $suffix) = $k =~ /^([!*+.^-])?([a-z][a-z0-9_]*)\.?(.*)$/;
 
             if (!$name) {
                 $has_err++;
@@ -107,7 +107,7 @@ sub handle_type {
             $validator->schema_pos->[-1] = $name;
             if ($self->can($meth)) {
                 my $err_pos = @{ $validator->errors };
-                if (!$self->$meth($data, $attr_hash->{$name})) {
+                if (!$self->$meth($data, $attr_hash->{$k})) {
                     $has_err++;
 
                     # replace default error message if supplied

@@ -14,11 +14,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 SYNOPSIS
 
@@ -78,6 +78,7 @@ sub ds_validate {
 
 my $Merger = new Data::PrefixMerge;
 $Merger->config->{recurse_array} = 1;
+$Merger->config->{preserve_keep_prefix} = 1;
 
 
 =head1 ATTRIBUTES
@@ -190,12 +191,8 @@ sub merge_attr_hashes {
     while (1) {
         last if $i >= @$attr_hashes;
         my $attr_hash = $attr_hashes->[$i];
-        my $has_merge_prefix = grep {/^[*+.!-]/} keys %$attr_hash;
-        if ($i == 0 && $has_merge_prefix) {
-            $res->{error} = "merge prefix found in first attrhash keys";
-            last;
-        }
-        if ($has_merge_prefix) {
+        my $has_merge_prefix = grep {/^[*+.!^-]/} keys %$attr_hash;
+        if ($i > 0 && $has_merge_prefix) {
             my $mres = $Merger->merge($attr_hashes->[$i-1], $attr_hash);
             if (!$mres->{success}) {
                 $res->{error} = $mres->{error};

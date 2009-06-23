@@ -15,7 +15,7 @@ requires 'Data::Dumper';
 requires 'Storable';
 requires 'Scalar::Util';
 requires 'List::MoreUtils';
-requires 'Data::PrefixMerge';
+requires 'Data::PrefixMerge' => '0.05';
 
 # for DSP::LoadSchema::YAMLFile
 requires 'YAML::XS';

@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 48;
+use Test::More tests => 54;
 
 BEGIN {
     use_ok('Data::Schema');
@@ -63,7 +63,8 @@ ok(!$res->{success} && $res->{errors}[0] =~ /unknown attribute/, 'unknown attrib
 # attr_hashes merge
 valid  (2,  [int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.1');
 valid  (3,  [int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.2');
-invalid(1.1,[int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.3');
+valid  (1,  [int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.3');
+invalid(1.1,[int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.4');
 
 valid  (2, [int=>{one_of=>[2]}=>{"+one_of"=>[3]}], 'multiple attrhash 3.1');
 valid  (3, [int=>{one_of=>[2]}=>{"+one_of"=>[3]}], 'multiple attrhash 3.2');
@@ -72,6 +73,13 @@ invalid(0, [int=>{one_of=>[2]}=>{"+one_of"=>[3]}], 'multiple attrhash 3.3');
 invalid(2, [int=>{is=>2}=>{"*is"=>3}], 'multiple attrhash 4.1');
 valid  (3, [int=>{is=>2}=>{"*is"=>3}], 'multiple attrhash 4.2');
 invalid(0, [int=>{is=>2}=>{"*is"=>3}], 'multiple attrhash 4.3');
+
+invalid(2,  [int=>{'^divisible_by'=>2}=>{"divisible_by"=>3}], 'multiple attrhash 5.1 (keep left attr)');
+invalid(3,  [int=>{'^divisible_by'=>2}=>{"divisible_by"=>3}], 'multiple attrhash 5.2 (keep left attr)');
+valid  (6,  [int=>{'^divisible_by'=>2}=>{"divisible_by"=>3}], 'multiple attrhash 5.3 (keep left attr)');
+
+valid  (2,  [int=>{'^divisible_by'=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 5.4 (keep left attr)');
+invalid(3,  [int=>{'^divisible_by'=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 5.5 (keep left attr)');
 
 $ds = new Data::Schema;
 invalid(15, {def=>{even=>[int=>{divisible_by=>2}]}, type=>'even', attr_hashes=>[{min=>10}], attrs=>{divisible_by=>3}}, 'third form 1.1', $ds);
