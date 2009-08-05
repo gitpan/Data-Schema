@@ -32,6 +32,10 @@ sub handle_pre_check_attrs {
     1;
 }
 
+sub type_in_english {
+    "number";
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

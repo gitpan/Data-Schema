@@ -24,7 +24,7 @@ pod_coverage_ok("${DS}", { also_private => [ qr/^(BUILD)$/ ], }, "${DS}");
 # XXX DST::Base
 
 for (qw(Array Bool Float Int Hash Schema Str Either All Object)) {
-    pod_coverage_ok("${DST}::$_", { also_private => [ qr/^(handle_type|handle_pre_check_attrs|handle_attr_.*|cmp|BUILD)$/ ], }, "${DST}::$_");
+    pod_coverage_ok("${DST}::$_", { also_private => [ qr/^(handle_type|handle_pre_check_attrs|handle_attr_.*|cmp|type_in_english|BUILD)$/ ], }, "${DST}::$_");
 }
 
 # XXX DSP::LoadSchema::Base

@@ -79,6 +79,10 @@ sub handle_type {
     !@$errors;
 }
 
+sub type_in_english {
+    "schema";
+}
+
 =head1 TYPE ATTRIBUTES
 
 The type attributes available are whatever attributes are available for the base

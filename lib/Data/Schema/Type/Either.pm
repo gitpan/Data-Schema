@@ -74,6 +74,29 @@ sub handle_attr_of {
     return 0;
 }
 
+sub type_in_english {
+    my ($self, $schema, $opt) = @_;
+    $schema = $self->validator->normalize_schema($schema)
+        unless ref($schema) eq 'HASH';
+
+    if (@{ $schema->{attr_hashes} }) {
+        for my $alias (qw/of/) {
+            my $of = $schema->{attr_hashes}[0]{$alias};
+            if ($of && @$of) {
+                my @e;
+                for my $ss (@$of) {
+                    $ss = $self->validator->normalize_schema($ss)
+                        unless ref($ss) eq 'HASH';
+                    my $th = $self->validator->get_type_handler($ss->{type});
+                    push @e, $th->type_in_english($ss, $opt);
+                }
+                return join " or ", map { "($_)" } @e;
+            }
+        }
+    }
+    return "either";
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

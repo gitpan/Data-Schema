@@ -14,11 +14,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07
 
 =cut
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 SYNOPSIS
 
@@ -129,6 +129,8 @@ sub BUILD {
             # LoadSchema::*, for L::YAMLFile it's a list of directory names, for
             # L::Hash it's a list of hashrefs
             schema_search_path => ["."],
+
+            defer_loading => 1,
         });
     }
 
@@ -316,9 +318,10 @@ sub log_warning {
 }
 
 sub _pos_as_str {
-    my $self = shift;
-    my $pos_elems = shift;
-    join "/", @$pos_elems;
+    my ($self, $pos_elems) = @_;
+    my $res = join "/", @$pos_elems;
+    $res =~ s/\s+/_/sg;
+    $res;
 }
 
 =head2 check_type_name($name)
@@ -338,11 +341,24 @@ sub check_type_name {
     $name =~ /\A[a-z][a-z0-9_]{0,63}\z/;
 }
 
+sub _load_type_handler {
+    my ($self, $name) = @_;
+    my $obj_or_class = $self->type_handlers->{$name};
+    die "BUG: unknown type: $name" unless $obj_or_class;
+    return $obj_or_class if ref($obj_or_class);
+    eval "require $obj_or_class";
+    die "Can't load class $obj_or_class: $@" if $@;
+    my $obj = $obj_or_class->new();
+    $obj->validator($self);
+    $self->type_handlers->{$name} = $obj;
+    $obj;
+}
+
 =head2 register_type($name, $class|$obj)
 
 Register a new type, along with a class name (C<$class>) or the actual object
 (C<$obj>) to handle the type. If C<$class> is given, the class will be require'd
-(if not already require'd) and instantiated to become object.
+and instantiated to become object later when needed via get_type_handler.
 
 Any object can become a type handler, as long as it has:
 
@@ -376,16 +392,13 @@ sub register_type {
         die "Type already registered: $name";
     }
 
-    my $obj;
+    $self->type_handlers->{$name} = $obj_or_class;
+
     if (ref($obj_or_class)) {
-        $obj = $obj_or_class;
-    } else {
-        eval "use $obj_or_class";
-        die "Can't load class $obj_or_class: $@" if $@;
-        $obj = $obj_or_class->new();
+        $obj_or_class->validator($self);
+    } elsif (!$self->config->{defer_loading}) {
+        $self->_load_type_handler($name);
     }
-    $obj->validator($self);
-    $self->type_handlers->{$name} = $obj;
 }
 
 =head2 register_plugin($class|$obj)
@@ -450,7 +463,8 @@ sub call_handler {
 
 =head2 get_type_handler($name)
 
-Try to get type handler for a certain type. If type is not found, invoke
+Try to get type handler for a certain type. If type handler is not an object (a
+class name), instantiate it first. If type is not found, invoke
 handle_unknown_type() in plugins to give plugins a chance to load the type. If
 type is still not found, return undef.
 
@@ -463,6 +477,10 @@ sub get_type_handler {
         # let's give plugin a chance to do something about it and then try again
         if ($self->call_handler("unknown_type", $name) > 0) {
             $th = $self->type_handlers->{$name};
+        }
+    } else {
+        unless (ref($th)) {
+            $th = $self->_load_type_handler($name);
         }
     }
     $th;
@@ -709,6 +727,11 @@ errmsg attribute suffix is used. For example, if schema is:
  [str => {regex=>'/^\w+$/', 'regex.errmsg'=>'alphanums_only'}]
 
 then your function will be called with 'alphanums_only' as the argument.
+
+=head2 defer_loading => BOOL
+
+Default true. If set to true, try to load require/use as much as possible (e.g.
+loading type handler classes, etc) to improve startup performance.
 
 
 =head1 COMPARISON WITH OTHER DATA VALIDATION MODULES

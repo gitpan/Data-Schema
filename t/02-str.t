@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 108;
+use Test::More tests => 110;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -35,6 +35,9 @@ for (qw(match matches)) {
     invalid('12', [str => {"not_$_"=>'^\d+$'}], "not_$_ 1");
     valid('12a', [str => {"not_$_"=>'^\d+$'}], "not_$_ 2");
 }
+# match regex object
+valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
+invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
 
 test_is_isnt_oneof('str', 'a', 'b', 'c', 'd'); # 26
 

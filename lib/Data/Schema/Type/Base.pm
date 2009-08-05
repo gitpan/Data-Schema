@@ -94,6 +94,7 @@ sub handle_type {
                 $has_err++;
                 $validator->log_error("schema error: invalid attribute name `$name': $k");
             }
+            next if $name =~ /^(ui)$/;
             if ($suffix && $suffix !~ /^(errmsg)$/) {
                 $has_err++;
                 $validator->log_error("schema error: unknown attribute suffix `$suffix': $k");
@@ -336,6 +337,16 @@ sub handle_attr_between {
     my ($self, $data, $arg) = @_;
     $self->handle_attr_min($data, $arg->[0]) &&
     $self->handle_attr_max($data, $arg->[1]);
+}
+
+=head2 type_in_english($attrhash, ...)
+
+Show an English representation of this data type.
+
+=cut
+
+sub type_in_english {
+    "base";
 }
 
 =head1 AUTHOR

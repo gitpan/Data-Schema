@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 54;
+use Test::More tests => 64;
 
 BEGIN {
     use_ok('Data::Schema');
@@ -19,8 +19,18 @@ sub handle_attr_bar { 1 };
 
 package main;
 
-my $ds = new Data::Schema;
+my $ds;
 my $res;
+
+# defer_loading, default is 1
+$ds = new Data::Schema;
+ok(!defined($INC{"Data/Schema/Type/Int.pm"}), "defer_loading=1 a");
+$ds->validate(1, 'int');
+ok(defined($INC{"Data/Schema/Type/Int.pm"}), "defer_loading=1 b");
+$ds = Data::Schema->new(config=>{defer_loading=>0, schema_search_path=>["."]});
+ok(defined($INC{"Data/Schema/Type/Str.pm"}), "defer_loading=0");
+
+$ds = new Data::Schema;
 
 $res = ds_validate(1, 'int');
 ok($res && $res->{success}, 'procedural interface');
@@ -123,5 +133,19 @@ ok(!$res->{success} && $res->{errors}[0] =~ /pedit/, 'config: gettext_function')
 # unknown attr suffix
 $res = ds_validate(1, [int=>{"max.foo"=>1}]);
 ok(!$res->{success} && $res->{errors}[0] =~ /suffix/, 'unknown attribute suffix');
+
+# _pos_as_str escapes whitespaces
+is($ds->_pos_as_str(["a", "b ", " c", "  d "]), "a/b_/_c/_d_", "_pos_as_str and whitespace");
+
+# casual tests for type_in_english
+test_type_in_english('int', 'int', 'type_in_english 1', $ds);
+test_type_in_english(["array"], 'array', 'type_in_english 2', $ds);
+test_type_in_english([array=>{of=>"str"}], 'array of (string)', 'type_in_english 3', $ds);
+test_type_in_english([hash=>{of=>["float", "object"]}],
+                     'hash of (float => object)', 'type_in_english 4', $ds);
+test_type_in_english([any=>{of=>["int", [array=>{all_elems=>"int"}]]}],
+                     '(int) or (array of (int))', 'type_in_english 5', $ds);
+test_type_in_english([all=>{of=>["int", "float"]}],
+                     '(int) as well as (float)', 'type_in_english 6', $ds);
 
 # TODO: register_plugin, unknown plugin

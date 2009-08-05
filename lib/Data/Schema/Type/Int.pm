@@ -84,6 +84,10 @@ sub handle_attr_not_divisible_by {
 # aliases
 sub handle_attr_undivisible_by { handle_attr_not_divisible_by(@_) }
 
+sub type_in_english {
+    "int";
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

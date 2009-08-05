@@ -218,6 +218,11 @@ sub handle_attr_not_isa {
     1;
 }
 
+sub type_in_english {
+    "object";
+    # XXX isa_one, isa_all, can_one, can_all
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

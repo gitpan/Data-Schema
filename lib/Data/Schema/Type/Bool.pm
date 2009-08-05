@@ -25,6 +25,10 @@ sub cmp {
     # true is considered larger than false
 }
 
+sub type_in_english {
+    "bool";
+}
+
 =head1 TYPE ATTRIBUTES
 
 See L<Data::Schema::Type::Base>.

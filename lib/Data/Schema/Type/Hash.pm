@@ -436,10 +436,15 @@ MIN and MAX are numbers, -1 means unlimited.
 
 Example (in YAML):
 
- [array, {some_of: [ [int, 1, -1], [str, 3, 3], [float, 0, 1] ]}]
+ [hash, {some_of: [[
+   [str, {one_of: [userid, username, email]}],
+   [str, {required: Yes}],
+   1, 1
+ ]]}]
 
-The above requires that the array contains at least one integer, exactly three
-strings, and at most one floating number.
+The above requires that the hash has *either* userid, username, or
+email key specified but not both or three of them. In other words, the
+hash has to choose to specify only one of the three.
 
 =cut
 
@@ -501,7 +506,7 @@ schema for each set of keys using regular expression.
 
 For example:
 
- [hash=>{keys_regex=>{ '\d+'=>"int", '^\D+$'=>"str" }}]
+ [hash=>{keys_regex=>{ '\d'=>"int", '^\D+$'=>"str" }}]
 
 This specifies that for all keys which contain a digit, the values must be int,
 while for all non-digit-containing keys, the values must be str. Example: {
@@ -567,6 +572,48 @@ sub handle_attr_values_not_match {
                                 '' :
                                 "$_[1] must not match regex $_[2]"
                          });
+}
+
+sub type_in_english {
+    my ($self, $schema, $opt) = @_;
+    $schema = $self->validator->normalize_schema($schema)
+        unless ref($schema) eq 'HASH';
+
+    if (@{ $schema->{attr_hashes} }) {
+        for my $alias (qw/of/) {
+            my $of = $schema->{attr_hashes}[0]{$alias};
+            next unless $of;
+            my $sk = $of->[0];
+            my $sv = $of->[1];
+            $sk = $self->validator->normalize_schema($sk) unless ref($sk) eq 'HASH';
+            $sv = $self->validator->normalize_schema($sv) unless ref($sv) eq 'HASH';
+            my $th;
+            $th = $self->validator->get_type_handler($sk->{type});
+            my $ek = $th->type_in_english($sk, $opt);
+            $th = $self->validator->get_type_handler($sv->{type});
+            my $ev = $th->type_in_english($sk, $opt);
+            return "hash of ($ek => $ev)";
+        }
+        for my $alias (qw/keys_of/) {
+            my $sk = $schema->{attr_hashes}[0]{$alias};
+            next unless $sk;
+            $sk = $self->validator->normalize_schema($sk) unless ref($sk) eq 'HASH';
+            my $th;
+            $th = $self->validator->get_type_handler($sk->{type});
+            my $ek = $th->type_in_english($sk, $opt);
+            return "hash of ($ek => ...)";
+        }
+        for my $alias (qw/values_of/) {
+            my $sv = $schema->{attr_hashes}[0]{$alias};
+            next unless $sv;
+            $sv = $self->validator->normalize_schema($sv) unless ref($sv) eq 'HASH';
+            my $th;
+            $th = $self->validator->get_type_handler($sv->{type});
+            my $ev = $th->type_in_english($sv, $opt);
+            return "hash of (... => $ev)";
+        }
+    }
+    return "all";
 }
 
 =head1 AUTHOR

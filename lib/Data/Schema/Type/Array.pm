@@ -375,6 +375,25 @@ sub _for_each_elem {
     !$has_err;
 }
 
+sub type_in_english {
+    my ($self, $schema, $opt) = @_;
+    $schema = $self->validator->normalize_schema($schema)
+        unless ref($schema) eq 'HASH';
+
+    if (@{ $schema->{attr_hashes} }) {
+        for my $alias (qw/all_elements all_element all_elems all_elem of/) {
+            my $of = $schema->{attr_hashes}[0]{$alias};
+            next unless $of;
+            $of = $self->validator->normalize_schema($of) unless ref($of) eq 'HASH';
+            my $th;
+            $th = $self->validator->get_type_handler($of->{type});
+            my $e = $th->type_in_english($of, $opt);
+            return "array of ($e)";
+        }
+    }
+    return "array";
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

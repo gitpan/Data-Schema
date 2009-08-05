@@ -109,4 +109,17 @@ sub test_len($$$$;$) {
     # total 36
 }
 
+sub type_in_english($;$) {
+    my ($schema, $ds) = @_;
+    $ds ||= Data::Schema->new;
+    $schema = $ds->normalize_schema($schema) unless ref($schema) eq 'HASH';
+    $ds->get_type_handler($schema->{type})->type_in_english($schema);
+}
+
+sub test_type_in_english($$$;$) {
+    my ($schema, $english, $test_name, $ds) = @_;
+    $ds ||= Data::Schema->new;
+    is(type_in_english($schema, $ds), $english, $test_name);
+}
+
 1;

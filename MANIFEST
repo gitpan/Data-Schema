@@ -2,6 +2,7 @@ Changes
 MANIFEST
 Makefile.PL
 README
+examples/email_or_userid_or_username
 lib/Data/Schema.pm
 lib/Data/Schema/Type/Base.pm
 lib/Data/Schema/Type/Array.pm
@@ -40,7 +41,6 @@ t/pod-coverage.t
 t/pod.t
 t/schemas/address
 t/schemas/even
-t/schemas/invalid_merge_first_attrhash
 t/schemas/invalid_circular
 t/schemas/invalid_circular2
 t/schemas/invalid_recursive

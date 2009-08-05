@@ -161,6 +161,10 @@ sub handle_attr_not_match {
 # aliases
 sub handle_attr_not_matches { handle_attr_not_match(@_) }
 
+sub type_in_english {
+    "string";
+}
+
 =head1 AUTHOR
 
 Steven Haryanto, C<< <steven at masterweb.net> >>

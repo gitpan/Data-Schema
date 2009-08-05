@@ -22,6 +22,10 @@ override handle_pre_check_attrs => sub {
     # XXX extra check when Num support other non-floats, e.g. complex, rational
 };
 
+sub type_in_english {
+    "float";
+}
+
 =head1 TYPE ATTRIBUTES
 
 See L<Data::Schema::Type::Base>.

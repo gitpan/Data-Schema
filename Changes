@@ -1,5 +1,12 @@
 Revision history for Data-Schema
 
+0.07    2009-08-05
+        - optimization: defer loading default type handlers until
+          needed (for slightly better startup speed)
+        - new feature: add type_in_english() for type handler
+        - doc: small fixes & example addition
+        - change: ignore all ui.* type attributes
+        
 0.06    2009-06-22
         - use Data::PrefixMerge 0.05
         - allow merge prefix on first attrhash (for KEEP mode merges)
