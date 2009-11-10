@@ -1,15 +1,15 @@
 Revision history for Data-Schema
 
-0.09    2009-11-08
-        - now requires Data::PrefixMerge 0.06
+0.09    2009-11-xx
         - new: type attribute 'forbidden' (the opposite of 'required'), which
           states that data must be undef
         - new: type attribute 'set' which is just an alias for 'required' or
           'forbidden'. set=1 is the same as setting 'required=1', while 'set=0'
           is the same as 'forbidden=0'
+        - now requires Data::PrefixMerge 0.06
         - INCOMPATIBLE CHANGE: setting config is now done via
-          $validator->config->foo instead of $validator->config->{foo} to catch
-          config name typos at compile time.
+          $validator->config->confname instead of $validator->config->{foo} to
+          catch config name typos at compile time.
         - INCOMPATIBLE CHANGE: when a hash type has 'keys' attribute, it now
           automatically means that only those keys specified in 'keys' are
           allowed (i.e. [hash=>{keys: {a: int, b: str, c: int}}] now

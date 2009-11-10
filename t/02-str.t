@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 110;
+use Test::More tests => 107;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -20,11 +20,6 @@ valid('', 'string', 'alias 1');
 # not string
 invalid([], 'str', 'array');
 invalid({}, 'str', 'hash');
-
-# required
-valid(undef, 'str', 'undef');
-invalid(undef, [str => {required => 1}], 'required 1');
-valid('abc', [str => {required => 1}], 'required 2');
 
 test_len('str', 'a', 'ab', 'abc'); # 36
 

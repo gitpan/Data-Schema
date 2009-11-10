@@ -63,7 +63,7 @@ sub handle_type {
 
     # push errors & warnings
     for (@$warnings) {
-        if (@{ $ds->warnings } >= $ds->config->max_warnings) {
+        if (@{ $ds->warnings } >= $ds->config->{max_warnings}) {
             $ds->too_many_warnings(1);
             last;
         }
@@ -71,7 +71,7 @@ sub handle_type {
             [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
     }
     for (@$errors) {
-        if (@{ $ds->errors } >= $ds->config->max_errors) {
+        if (@{ $ds->errors } >= $ds->config->{max_errors}) {
             $ds->too_many_errors(1);
             last;
         }

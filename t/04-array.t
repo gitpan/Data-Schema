@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 169;
+use Test::More tests => 167;
 
 use_ok('Data::Schema::Type::Array');
 use_ok('Data::Schema');
@@ -18,10 +18,7 @@ invalid({}, 'array', 'hash');
 invalid('123', 'array', 'str');
 invalid(\1, 'array', 'refscalar');
 
-# required
-valid(undef, 'array', 'undef');
-invalid(undef, [array => {required => 1}], 'required 1');
-valid([], [array => {required => 1}], 'required 2');
+valid([], [array => {required => 1}], 'required 1');
 
 test_len('array', [1], [1,2], [1,2,3]); # 36
 

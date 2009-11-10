@@ -124,7 +124,7 @@ sub handle_type {
                     my $errmsg = $attr_hash->{"$name.errmsg"};
                     if (defined($errmsg)) {
                         splice @{ $validator->errors }, $err_pos;
-                        my $f = $validator->config->gettext_function;
+                        my $f = $validator->config->{gettext_function};
                         $validator->log_error(ref($f) ? $f->($errmsg) : $errmsg);
                     }
 

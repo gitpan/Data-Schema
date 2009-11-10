@@ -113,7 +113,7 @@ The second way, OO-style, provides more control and options:
 
 You can set configuration using:
 
- $validator->config->CONFIGVAR('VALUE');
+ $validator->config->{CONFIGVAR} = 'VALUE';
 
 You can also load plugins:
 
@@ -236,7 +236,7 @@ hash:
  };
 
  $validator->register_plugin('Data::Schema::Plugin::LoadSchema::Hash');
- $validator->config->schema_search_path($schema_types);
+ $validator->config->{schema_search_path} = $schema_types;
 
  my $res;
  $res = validate(4, 'positive_even');              # success
@@ -265,7 +265,7 @@ Another alternative is putting schemas in YAML files.
 
  # in your code
  $validator->register_plugin('Data::Schema::Plugin::LoadSchema::YAMLFile');
- $validator->config->schema_search_path(["schemadir"]);
+ $validator->config->{schema_search_path} = ["schemadir"];
 
  my $res;
  $res = validate(4, 'even');              # success

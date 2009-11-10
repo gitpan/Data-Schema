@@ -180,7 +180,7 @@ $res = ds_validate(10, [int=>{"min"=>200, "min.errmsg"=>"don't be so cheap!"}]);
 ok(!$res->{success} && $res->{errors}[0] =~ /cheap/, 'attribute suffix: errmsg');
 # config: gettext_function
 $ds = new Data::Schema;
-$ds->config->gettext_function(sub { "tong pedit atuh!" });
+$ds->config->{gettext_function} = sub { "tong pedit atuh!" };
 $res = $ds->validate(10, [int=>{"min"=>200, "min.errmsg"=>"min.errmsg"}]);
 ok(!$res->{success} && $res->{errors}[0] =~ /pedit/, 'config: gettext_function');
 

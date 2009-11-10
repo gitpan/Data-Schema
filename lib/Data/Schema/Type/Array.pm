@@ -33,7 +33,7 @@ Example invalid data:
 
 use Moose;
 extends 'Data::Schema::Type::Base';
-with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasLength';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasElement';
 use Storable qw/freeze/;
 use List::MoreUtils qw/uniq/;
 
@@ -45,6 +45,16 @@ sub _equal {
 sub _length {
     my ($self, $data) = @_;
     scalar @$data;
+}
+
+sub _element {
+    my ($self, $data, $idx) = @_;
+    $data->[$idx];
+}
+
+sub _indexes {
+    my ($self, $data) = @_;
+    0..((scalar @$data)-1);
 }
 
 sub handle_pre_check_attrs {
@@ -124,40 +134,14 @@ sub handle_attr_element { handle_attr_elements(@_) }
 sub handle_attr_elems { handle_attr_elements(@_) }
 sub handle_attr_elem { handle_attr_elements(@_) }
 
-=head2 all_elements => SCHEMA
+=head2 of => SCHEMA
 
 Requires that every element of the array validates to the specified schema.
 
-Synonyms: of, all_element, all_elems, all_elem
-
-Example (in YAML):
-
- [array, {of: int}]
-
-The above specifies an array of ints.
+Synonyms: all_elements, all_elems, all_elem
 
 =cut
 
-sub handle_attr_all_elements {
-    my ($self, $data, $arg) = @_;
-    my $has_err = 0;
-
-    push @{ $self->validator->data_pos }, 0;
-    for my $i (0..@$data-1) {
-        $self->validator->data_pos->[-1] = $i;
-        if (!$self->validator->_validate($data->[$i], $arg)) {
-            $has_err++;
-        }
-        last if $self->validator->too_many_errors;
-    }
-    pop @{ $self->validator->data_pos };
-    !$has_err;
-}
-
-# aliases
-sub handle_attr_all_element { handle_attr_all_elements(@_) }
-sub handle_attr_all_elems { handle_attr_all_elements(@_) }
-sub handle_attr_all_elem { handle_attr_all_elements(@_) }
 sub handle_attr_of { handle_attr_all_elements(@_) }
 
 =head2 some_of => [[TYPE, MIN, MAX], [TYPE, MIN, MAX], ...]

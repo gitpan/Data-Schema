@@ -36,7 +36,7 @@ Example invalid data:
 
 use Moose;
 extends 'Data::Schema::Type::Base';
-with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasLength';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasElement';
 use Storable qw/freeze/;
 
 sub _equal {
@@ -47,6 +47,16 @@ sub _equal {
 sub _length {
     my ($self, $data) = @_;
     scalar keys %$data;
+}
+
+sub _element {
+    my ($self, $data, $idx) = @_;
+    $data->{$idx};
+}
+
+sub _indexes {
+    my ($self, $data) = @_;
+    keys %$data;
 }
 
 sub handle_pre_check_attrs {
@@ -67,25 +77,6 @@ Aside from those, hash also has these type attributes:
 
 =cut
 
-sub _for_each_key {
-    my ($self, $data, $arg, $checkfail_sub) = @_;
-    my $has_err = 0;
-
-    push @{ $self->validator->data_pos }, [''];
-    foreach my $k (keys %$data) {
-        my $v = $data->{$k};
-        $self->validator->data_pos->[-1] = $k;
-        my $errmsg = $checkfail_sub->($k, $v, $arg);
-        if ($errmsg) {
-            $has_err++;
-            $self->validator->log_error($errmsg);
-            last if $self->validator->too_many_errors;
-        }
-    }
-    pop @{ $self->validator->data_pos };
-    !$has_err;
-}
-
 =head2 keys_match => REGEX
 
 Require that all hash keys must match a regular expression.
@@ -94,12 +85,12 @@ Require that all hash keys must match a regular expression.
 
 sub handle_attr_keys_match {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            (!ref($_[0]) && $_[0] =~ qr/$_[2]/) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                (!ref($_[0]) && $_[0] =~ qr/$_[2]/) ?
                                 '' :
                                 "$_[0] must match regex $_[2]"
-                         });
+                             });
 }
 
 =head2 keys_not_match => REGEX
@@ -111,12 +102,12 @@ regular expression.
 
 sub handle_attr_keys_not_match {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            (!ref($_[0]) && $_[0] !~ qr/$_[2]/) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                (!ref($_[0]) && $_[0] !~ qr/$_[2]/) ?
                                 '' :
                                 "$_[0] must not match regex $_[2]"
-                         });
+                             });
 }
 
 =head2 keys_one_of => [VALUE, ...]
@@ -136,17 +127,17 @@ required).
 
 sub handle_attr_keys_one_of {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            # XXX early exit
-                            (grep {$_[0] eq $_} @$arg) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                # XXX early exit
+                                (grep {$_[0] eq $_} @$arg) ?
                                 '' :
                                 (@$arg ==1 ?
-                                   "key must be $arg->[0]" :
+                                 "key must be $arg->[0]" :
                                  @$arg < 10 ?
-                                   "key must be one of @$arg" :
-                                   "key does not belong to list of valid keys")
-                         });
+                                 "key must be one of @$arg" :
+                                 "key does not belong to list of valid keys")
+                             });
 }
 
 # aliases
@@ -166,18 +157,18 @@ For example (in YAML):
 
 sub handle_attr_values_one_of {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            # XXX early exit
-                            (grep {ref($_[1]) ? ($self->cmp($_[1], $_) == 0) : ($_[1] eq $_)} @$arg) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                # XXX early exit
+                                (grep {ref($_[1]) ? ($self->cmp($_[1], $_) == 0) : ($_[1] eq $_)} @$arg) ?
                                 '' :
                                 # XXX complex value must be dumped
                                 (@$arg ==1 ?
-                                   "value must be $arg->[0]" :
+                                 "value must be $arg->[0]" :
                                  @$arg < 10 ?
-                                   "value must be one of @$arg" :
-                                   "values does not belong to list of valid values")
-                         });
+                                 "value must be one of @$arg" :
+                                 "values does not belong to list of valid values")
+                             });
 }
 
 # aliases
@@ -249,15 +240,22 @@ sub handle_attr_keys {
         return;
     }
 
+    my $allow_extra = $self->validator->config->allow_extra_hash_keys;
+
     push @{ $self->validator->data_pos }, '';
     foreach my $k (keys %$data) {
-        next unless exists $arg->{$k};
-        $self->validator->data_pos->[-1] = $k;
-        push @{ $self->validator->schema_pos }, $k;
-        if (!$self->validator->_validate($data->{$k}, $arg->{$k})) {
+        if (!exists $arg->{$k}) {
+            next if $allow_extra;
+            $self->validator->log_error("key `$k' not allowed");
             $has_err++;
+        } else {
+            $self->validator->data_pos->[-1] = $k;
+            push @{ $self->validator->schema_pos }, $k;
+            if (!$self->validator->_validate($data->{$k}, $arg->{$k})) {
+                $has_err++;
+            }
+            pop @{ $self->validator->schema_pos };
         }
-        pop @{ $self->validator->schema_pos };
         last if $self->validator->too_many_errors;
     }
     pop @{ $self->validator->data_pos };
@@ -296,6 +294,8 @@ sub handle_attr_keys_of {
 
 Specify a schema for all hash values.
 
+Synonyms: all_elements, all_elems, all_elem
+
 For example (in YAML):
 
  [hash, {values_of: int}]
@@ -304,21 +304,7 @@ This specifies that all hash values must be ints.
 
 =cut
 
-sub handle_attr_values_of {
-    my ($self, $data, $arg) = @_;
-    my $has_err = 0;
-
-    push @{ $self->validator->data_pos }, '';
-    foreach my $k (keys %$data) {
-        $self->validator->data_pos->[-1] = $k;
-        if (!$self->validator->_validate($data->{$k}, $arg)) {
-            $has_err++;
-        }
-        last if $self->validator->too_many_errors;
-    }
-    pop @{ $self->validator->data_pos };
-    !$has_err;
-}
+sub handle_attr_values_of { handle_attr_all_elements(@_) }
 
 =head2 of => [SCHEMA_FOR_KEYS, SCHEMA_FOR_VALUES]
 
@@ -472,12 +458,12 @@ Specifies that all values must be scalar and match regular expression.
 
 sub handle_attr_values_match {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            (!ref($_[1]) && $_[1] =~ qr/$_[2]/) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                (!ref($_[1]) && $_[1] =~ qr/$_[2]/) ?
                                 '' :
                                 "$_[1] must match regex $_[2]"
-                         });
+                             });
 }
 
 =head2 values_not_match => REGEX
@@ -489,12 +475,12 @@ expression (but must be a scalar).
 
 sub handle_attr_values_not_match {
     my ($self, $data, $arg) = @_;
-    $self->_for_each_key($data, $arg,
-                         sub {
-                            (!ref($_[1]) && $_[1] !~ qr/$_[2]/) ?
+    $self->_for_each_element($data, $arg,
+                             sub {
+                                (!ref($_[1]) && $_[1] !~ qr/$_[2]/) ?
                                 '' :
                                 "$_[1] must not match regex $_[2]"
-                         });
+                             });
 }
 
 sub english {

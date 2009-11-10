@@ -1,10 +1,10 @@
-package Data::Schema::Type::HasLength;
+package Data::Schema::Type::HasElement;
 
 use Moose::Role;
 
 =head1 NAME
 
-Data::Schema::Type::HasLength - Role for types that have the notion of length
+Data::Schema::Type::HasElement - Role for types that have the notion of elements
 
 =head1 SYNOPSIS
 
@@ -13,14 +13,20 @@ Data::Schema::Type::HasLength - Role for types that have the notion of length
 =head1 DESCRIPTION
 
 This is the role for types that have the notion of length. It provides
-attributes like maxlen, length, length_between, etc. It is used by 'str',
-'array', and also 'hash'.
+attributes like maxlen, length, length_between, all_elements, etc. It is used by
+'str', 'array', and also 'hash'.
 
-Role consumer must provide method '_length' which returns the length.
+Role consumer must provide methods:
+
+* '_length()' which returns the length;
+
+* '_element(idx)' which returns the element at idx;
+
+* '_indexes()' which returns all element indexes.
 
 =cut
 
-requires '_length';
+requires '_length', '_element', '_indexes';
 
 =head1 TYPE ATTRIBUTES
 
@@ -108,6 +114,62 @@ sub handle_attr_len {
 
 # aliases
 sub handle_attr_length { handle_attr_len(@_) }
+
+=head2 all_elements => SCHEMA
+
+Requires that every element of the array validates to the specified schema.
+
+Synonyms: all_element, all_elems, all_elem
+
+Example (in YAML):
+
+ [array, {of: int}]
+
+The above specifies an array of ints.
+
+=cut
+
+sub handle_attr_all_elements {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+
+    my @indexes = $self->_indexes($data);
+    push @{ $self->validator->data_pos }, $indexes[0];
+    for my $i (@indexes) {
+        $self->validator->data_pos->[-1] = $i;
+        if (!$self->validator->_validate($self->_element($data, $i), $arg)) {
+            $has_err++;
+        }
+        last if $self->validator->too_many_errors;
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
+
+# aliases
+sub handle_attr_all_element { handle_attr_all_elements(@_) }
+sub handle_attr_all_elems { handle_attr_all_elements(@_) }
+sub handle_attr_all_elem { handle_attr_all_elements(@_) }
+
+sub _for_each_element {
+    my ($self, $data, $arg, $checkfail_sub) = @_;
+    my $has_err = 0;
+
+    my @indexes = $self->_indexes($data);
+    push @{ $self->validator->data_pos }, $indexes[0];
+    foreach my $k (@indexes) {
+        my $v = $self->_element($data, $k);
+        $self->validator->data_pos->[-1] = $k;
+        my $errmsg = $checkfail_sub->($k, $v, $arg);
+        if ($errmsg) {
+            $has_err++;
+            $self->validator->log_error($errmsg);
+            last if $self->validator->too_many_errors;
+        }
+    }
+    pop @{ $self->validator->data_pos };
+    !$has_err;
+}
 
 =head1 AUTHOR
 

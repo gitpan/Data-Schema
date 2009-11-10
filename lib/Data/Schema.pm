@@ -5,6 +5,7 @@ use vars qw(@ISA @EXPORT);
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(ds_validate);
+use Data::Schema::Config;
 use Data::PrefixMerge;
 use Data::Schema::Type::Schema;
 
@@ -14,11 +15,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.08
+Version 0.09
 
 =cut
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 SYNOPSIS
 
@@ -77,8 +78,8 @@ sub ds_validate {
 }
 
 my $Merger = new Data::PrefixMerge;
-$Merger->config->{recurse_array} = 1;
-$Merger->config->{preserve_keep_prefix} = 1;
+$Merger->config->recurse_array(1);
+$Merger->config->preserve_keep_prefix(1);
 
 
 =head1 ATTRIBUTES
@@ -90,7 +91,7 @@ has type_handlers => (is => 'rw');
 
 =head2 config
 
-Configuration hashref. See B<CONFIGURATION> section.
+Configuration object. See L<Data::Schema::Config>.
 
 =cut
 
@@ -119,19 +120,13 @@ sub BUILD {
     # config
     if ($self->config) {
         # some sanity checks
-        die "config must be a hashref" unless ref($self->config) eq 'HASH';
-        die "config->{schema_search_path} must be an arrayref" unless ref($self->config->{schema_search_path}) eq 'ARRAY';
+        my $is_hashref = ref($self->config) eq 'HASH';
+        die "config must be a hashref or a Data::Schema::Config" unless
+            $is_hashref || UNIVERSAL::isa("Data::Schema::Config");
+        $self->config(Data::Schema::Config->new(%{ $self->config })) if $is_hashref;
+        die "config->schema_search_path must be an arrayref" unless ref($self->config->schema_search_path) eq 'ARRAY';
     } else {
-        $self->config({
-            max_errors => 10,
-            max_warnings => 10,
-
-            # LoadSchema::*, for L::YAMLFile it's a list of directory names, for
-            # L::Hash it's a list of hashrefs
-            schema_search_path => ["."],
-
-            defer_loading => 1,
-        });
+        $self->config(Data::Schema::Config->new);
     }
 
     # add default type handlers
@@ -300,7 +295,7 @@ user, normally you wouldn't need this.
 sub log_error {
     my ($self, $message) = @_;
     $self->too_many_errors(1) unless
-        $self->_log($self->errors, $self->config->{max_errors}, $message, "too many errors");
+        $self->_log($self->errors, $self->config->max_errors, $message, "too many errors");
 }
 
 =head2 log_warning($message)
@@ -314,7 +309,7 @@ As DS user, normally you wouldn't need this.
 sub log_warning {
     my ($self, $message) = @_;
     $self->too_many_warnings(1) unless
-        $self->_log($self->warnings, $self->config->{max_warnings}, $message, "too many warnings");
+        $self->_log($self->warnings, $self->config->max_warnings, $message, "too many warnings");
 }
 
 sub _pos_as_str {
@@ -396,7 +391,7 @@ sub register_type {
 
     if (ref($obj_or_class)) {
         $obj_or_class->validator($self);
-    } elsif (!$self->config->{defer_loading}) {
+    } elsif (!$self->config->defer_loading) {
         $self->_load_type_handler($name);
     }
 }
@@ -689,49 +684,6 @@ sub _validate {
 
     $self->type_handlers($orig_type_handlers) if $orig_type_handlers;
 }
-
-
-=head1 CONFIGURATION
-
-Configuration is set like this:
-
- my $validator = new Data::Schema;
- $validator->config->{CONFIGVAR} = 'VALUE';
- # ...
-
-Available configuration variables:
-
-=head2 max_errors => INT
-
-Maximum number of errors before validation stops. Default is 10.
-
-=head2 max_warnings => INT
-
-Maximum number of warnings before warnings will not be added anymore. Default is
-10.
-
-=head2 schema_search_path => [...]
-
-A list of places to look for schemas. If you use DSP::LoadSchema::YAMLFile, this
-will be a list of directories to search for YAML files. If you use
-DSP::LoadSchema::Hash, this will be the hashes to search for schemas. This is
-used if you use schema types (types based on schema).
-
-See <Data::Schema::Type::Schema> for more details.
-
-=head2 gettext_function => \&func
-
-If set to a coderef, then this will be used to get custom error message when
-errmsg attribute suffix is used. For example, if schema is:
-
- [str => {regex=>'/^\w+$/', 'regex.errmsg'=>'alphanums_only'}]
-
-then your function will be called with 'alphanums_only' as the argument.
-
-=head2 defer_loading => BOOL
-
-Default true. If set to true, try to load require/use as much as possible (e.g.
-loading type handler classes, etc) to improve startup performance.
 
 
 =head1 COMPARISON WITH OTHER DATA VALIDATION MODULES

@@ -20,7 +20,7 @@ Data::Schema::Plugin::LoadSchema::YAMLFile - Plugin to load schemas from YAML fi
     use Data::Schema;
     my $ds = Data::Schema->new;
     $ds->register_plugin('Data::Schema::Plugin::LoadSchema::YAMLFile');
-    $ds->config->schema_search_path(["schemadir"]);
+    $ds->config->{'schema_search_path'} = ["schemadir"];
 
     my $res;
     $res = $ds->validate(2, 'even_int'); # success
@@ -41,7 +41,7 @@ sub get_schema {
     my $path;
     my $found;
 
-    my $sp = $self->validator->config->schema_search_path;
+    my $sp = $self->validator->config->{schema_search_path};
     for my $dir (ref($sp) eq 'ARRAY' ? @$sp : $sp) {
         my $path0 = "$dir/$name";
         while (1) {

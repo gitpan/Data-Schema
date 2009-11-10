@@ -18,7 +18,7 @@ Data::Schema::Plugin::LoadSchema::Hash - Plugin to load schemas from hashes
 
     my $ds = Data::Schema->new;
     $ds->register_plugin('Data::Schema::Plugin::LoadSchema::Hash');
-    $ds->config->schema_search_path([$schemas]);
+    $ds->config->{'schema_search_path'} = [$schemas];
 
 =head1 METHODS
 
@@ -33,7 +33,7 @@ sub get_schema {
     my ($self, $name) = @_;
     my $found;
 
-    for my $h (@{ $self->validator->config->schema_search_path }) {
+    for my $h (@{ $self->validator->config->{schema_search_path} }) {
         next unless ref($h) eq 'HASH' && exists $h->{$name};
         return $h->{$name};
     }

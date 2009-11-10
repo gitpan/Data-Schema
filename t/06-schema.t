@@ -17,7 +17,7 @@ require 'testlib.pm';
 
 my $ds = Data::Schema->new;
 $ds->register_plugin('Data::Schema::Plugin::LoadSchema::YAMLFile');
-$ds->config->{schema_search_path} = ["$Bin/schemas"];
+$ds->config->schema_search_path(["$Bin/schemas"]);
 
 dies_ok { $ds->validate(1, 'invalid_unknown_base') } 'schema type: unknown base type';
 dies_ok { $ds->validate(1, 'invalid_recursive') } 'schema type: recursive';
@@ -28,17 +28,15 @@ invalid('1.2.3', 'ip', 'basic 2', $ds);
 invalid([], 'ip', 'basic 3', $ds);
 
 valid(undef, 'ip', 'undef', $ds);
-invalid(undef, [ip=>{required=>1}], 'required', $ds);
+invalid(undef, [ip=>{required=>1}], 'required 1', $ds);
+valid('1.2.3.4', [ip=>{required=>1}], 'required 2', $ds);
+valid(undef, [ip=>{forbidden=>1}], 'forbidden 1', $ds);
+invalid('1.2.3.4', [ip=>{forbidden=>1}], 'forbidden 2', $ds);
 
 valid(['1.2.3.4'], [array=>{elem=>['ip']}], 'array 1', $ds);
 valid([], [array=>{elem=>['ip']}], 'array 2', $ds);
 invalid('1.2.3.4', [array=>{elem=>['ip']}], 'array 3', $ds);
 invalid(['1.2.3'], [array=>{elem=>['ip']}], 'array 4', $ds);
-
-# required
-valid(undef, 'ip', 'required 1', $ds);
-invalid(undef, [ip=>{required=>1}], 'required 2', $ds);
-valid('1.2.3.4', [ip=>{required=>1}], 'required 3', $ds);
 
 valid(4, 'positive_even', 'schema on schema 1', $ds);
 valid(undef, 'positive_even', 'schema on schema 2', $ds);

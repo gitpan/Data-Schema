@@ -1,9 +1,11 @@
 #!perl -T
 
-use Test::More tests => 17;
+use Test::More tests => 18;
 
 BEGIN {
 	use_ok( 'Data::Schema' );
+
+	use_ok( 'Data::Schema::Config' );
 
 	#use_ok( 'Data::Schema::Type::Base' );
 	use_ok( 'Data::Schema::Type::Hash' );

@@ -18,9 +18,7 @@ invalid('123', 'hash', 'str');
 invalid(\1, 'hash', 'refscalar');
 
 # required
-valid(undef, 'hash', 'undef');
-invalid(undef, [hash => {required => 1}], 'required 1');
-valid({}, [hash => {required => 1}], 'required 2');
+valid({}, [hash => {required => 1}], 'required 1');
 
 test_len('hash', {a=>1}, {a=>1, b=>2}, {a=>1, b=>2, c=>3}); # 36
 
@@ -110,11 +108,14 @@ for (qw(some_of)) {
     invalid({}, $sch, "$_ 15");
 }
 
-# keys 1x14 = 14
+# keys 1x16 = 16
 for (qw(keys)) {
+    my $dse = new Data::Schema(config=>{allow_extra_hash_keys=>1});
+
     my $sch = [hash=>{$_=>{i=>'int', s=>'str', s2=>[str=>{minlen=>2}]}}];
     valid({}, $sch, "$_ 1.1");
-    valid({k=>1}, $sch, "$_ 1.2");
+    invalid({k=>1}, $sch, "$_ 1.2");
+    valid  ({k=>1}, $sch, "$_ 1.2 (allow_extra_hash_keys=1)", $dse);
     valid({i=>1}, $sch, "$_ 1.3");
     invalid({i=>"a"}, $sch, "$_ 1.4");
     valid({i=>1, s=>''}, $sch, "$_ 1.5");
@@ -126,7 +127,8 @@ for (qw(keys)) {
     invalid({h=>1}, $sch, "$_ 2.1");
     valid({h=>{}}, $sch, "$_ 2.2");
     invalid({h=>{}, h2=>{}}, $sch, "$_ 2.3");
-    valid({h2=>{j=>1}}, $sch, "$_ 2.4");
+    invalid({h2=>{j=>1}}, $sch, "$_ 2.4");
+    valid  ({h2=>{j=>1}}, $sch, "$_ 2.4 (allow_extra_hash_keys=1)", $dse);
     invalid({h2=>{hi2=>1}}, $sch, "$_ 2.5");
     valid({h2=>{hi2=>2}}, $sch, "$_ 2.6");
 }
