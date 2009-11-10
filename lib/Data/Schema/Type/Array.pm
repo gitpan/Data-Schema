@@ -33,14 +33,18 @@ Example invalid data:
 
 use Moose;
 extends 'Data::Schema::Type::Base';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasLength';
 use Storable qw/freeze/;
 use List::MoreUtils qw/uniq/;
 
-sub cmp {
+sub _equal {
     my ($self, $a, $b) = @_;
-    my $res = freeze($a) cmp freeze($b);
-    return 0 if $res == 0;
-    return undef; # because -1 or 1 doesn't make any sense (yet) for array
+    (freeze($a) cmp freeze($b)) == 0;
+}
+
+sub _length {
+    my ($self, $data) = @_;
+    scalar @$data;
 }
 
 sub handle_pre_check_attrs {
@@ -54,93 +58,9 @@ sub handle_pre_check_attrs {
 
 =head1 TYPE ATTRIBUTES
 
-In addition to attributes provided from DST::Base, like B<one_of>, B<is>, etc,
-array has some additional attributes:
-
-=head2 max_len => LEN
-
-Requires that the array have at most LEN elements.
-
-Synonyms: maxlen, max_length, maxlength
-
-=cut
-
-sub handle_attr_max_len {
-    my ($self, $data, $arg) = @_;
-    if (@$data > $arg) {
-        $self->validator->log_error("length must not exceed $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_maxlen { handle_attr_max_len(@_) }
-sub handle_attr_max_length { handle_attr_max_len(@_) }
-sub handle_attr_maxlength { handle_attr_max_len(@_) }
-
-=head2 min_len => LEN
-
-Requires that the array have at least LEN elements.
-
-Synonyms: minlen, min_length, minlength
-
-=cut
-
-sub handle_attr_min_len {
-    my ($self, $data, $arg) = @_;
-    if (@$data < $arg) {
-        $self->validator->log_error("length must be at least $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_minlen { handle_attr_min_len(@_) }
-sub handle_attr_min_length { handle_attr_min_len(@_) }
-sub handle_attr_minlength { handle_attr_min_len(@_) }
-
-=head2 len_between => [MIN, MAX]
-
-A convenience attribute that combines B<minlen> and B<maxlen>.
-
-Synonyms: length_between
-
-=cut
-
-sub handle_attr_len_between {
-    my ($self, $data, $arg) = @_;
-    my $l = @$data;
-    if ($l < $arg->[0] || $l > $arg->[1]) {
-        $self->validator->log_error("length must be between $arg->[0] and $arg->[1])");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length_between { handle_attr_len_between(@_) }
-
-=head2 len => LEN
-
-Requires that the array have exactly LEN elements.
-
-Synonyms: length
-
-=cut
-
-sub handle_attr_len {
-    my ($self, $data, $arg) = @_;
-    if (@$data != $arg) {
-        $self->validator->log_error("length must be $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length { handle_attr_len(@_) }
+Arrays are Comparable and HasLength, so you can consult the docs for those
+roles for available attributes. In addition to these, there are other attributes
+for 'array':
 
 =head2 unique => 0 or 1
 
@@ -375,7 +295,7 @@ sub _for_each_elem {
     !$has_err;
 }
 
-sub type_in_english {
+sub english {
     my ($self, $schema, $opt) = @_;
     $schema = $self->validator->normalize_schema($schema)
         unless ref($schema) eq 'HASH';
@@ -387,7 +307,7 @@ sub type_in_english {
             $of = $self->validator->normalize_schema($of) unless ref($of) eq 'HASH';
             my $th;
             $th = $self->validator->get_type_handler($of->{type});
-            my $e = $th->type_in_english($of, $opt);
+            my $e = $th->english($of, $opt);
             return "array of ($e)";
         }
     }
@@ -409,4 +329,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

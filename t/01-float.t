@@ -20,5 +20,5 @@ invalid({}, 'float', 'hash');
 
 valid(undef, 'float', 'undef');
 
-test_is_isnt_oneof('float', 1, -2.1, 3.1, -4.1); # 26
-test_min_max('float', -4.1, 5.1, 10.1); # 27
+test_comparable('float', 1, -2.1, 3.1, -4.1); # 26
+test_sortable('float', -4.1, 5.1, 10.1); # 27

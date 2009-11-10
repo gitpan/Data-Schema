@@ -39,6 +39,6 @@ for (qw(match matches)) {
 valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
 invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
 
-test_is_isnt_oneof('str', 'a', 'b', 'c', 'd'); # 26
+test_comparable('str', 'a', 'b', 'c', 'd'); # 26
 
-test_min_max('str', 'a', 'b', 'c'); # 27
+test_sortable('str', 'a', 'b', 'c'); # 27

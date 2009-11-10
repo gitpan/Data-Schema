@@ -16,6 +16,10 @@ lib/Data/Schema/Type/Schema.pm
 lib/Data/Schema/Type/Object.pm
 lib/Data/Schema/Type/Either.pm
 lib/Data/Schema/Type/All.pm
+lib/Data/Schema/Type/Printable.pm
+lib/Data/Schema/Type/Comparable.pm
+lib/Data/Schema/Type/Sortable.pm
+lib/Data/Schema/Type/HasLength.pm
 lib/Data/Schema/Plugin/LoadSchema/Base.pm
 lib/Data/Schema/Plugin/LoadSchema/Hash.pm
 lib/Data/Schema/Plugin/LoadSchema/YAMLFile.pm

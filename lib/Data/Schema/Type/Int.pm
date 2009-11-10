@@ -29,8 +29,9 @@ override handle_pre_check_attrs => sub {
 
 =head1 TYPE ATTRIBUTES
 
-In addition to attributes provided from L<Data::Schema::Type::Base>,
-e.g. B<one_of> or B<min> and B<max>, ints have additional attributes.
+See L<Data::Schema::Type::Num>.
+
+In addition to those provided by Num, ints have additional attributes.
 
 =head2 mod => [X, Y]
 
@@ -84,7 +85,7 @@ sub handle_attr_not_divisible_by {
 # aliases
 sub handle_attr_undivisible_by { handle_attr_not_divisible_by(@_) }
 
-sub type_in_english {
+sub english {
     "int";
 }
 
@@ -103,4 +104,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

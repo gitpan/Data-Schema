@@ -16,7 +16,7 @@ sub invalid($$$;$) {
     ok($res && !$res->{success}, $test_name);
 }
 
-sub test_is_isnt_oneof($$$$$;$) {
+sub test_comparable($$$$$;$) {
     my ($type, $valid1, $valid2, $invalid1, $invalid2, $ds) = @_;
     # one_of, 2x4 = 8
     for (qw(one_of
@@ -52,7 +52,7 @@ sub test_is_isnt_oneof($$$$$;$) {
     # total = 8+8+2+8 = 26
 }
 
-sub test_min_max($$$$;$) {
+sub test_sortable($$$$;$) {
     my ($type, $a, $b, $c, $ds) = @_;
     for (qw(min ge)) { # 2x3 = 6
         invalid($a, [$type => {$_=>$b}], "$type:$_ 1", $ds);
@@ -109,17 +109,17 @@ sub test_len($$$$;$) {
     # total 36
 }
 
-sub type_in_english($;$) {
+sub english($;$) {
     my ($schema, $ds) = @_;
     $ds ||= Data::Schema->new;
     $schema = $ds->normalize_schema($schema) unless ref($schema) eq 'HASH';
-    $ds->get_type_handler($schema->{type})->type_in_english($schema);
+    $ds->get_type_handler($schema->{type})->english($schema);
 }
 
-sub test_type_in_english($$$;$) {
+sub test_english($$$;$) {
     my ($schema, $english, $test_name, $ds) = @_;
     $ds ||= Data::Schema->new;
-    is(type_in_english($schema, $ds), $english, $test_name);
+    is(english($schema, $ds), $english, $test_name);
 }
 
 1;

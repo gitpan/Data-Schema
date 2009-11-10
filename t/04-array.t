@@ -25,7 +25,7 @@ valid([], [array => {required => 1}], 'required 2');
 
 test_len('array', [1], [1,2], [1,2,3]); # 36
 
-test_is_isnt_oneof('array', [1], [2], [3], [4]); # 62
+test_comparable('array', [1], [2], [3], [4]); # 62
 
 # all_elements = 5x3=15
 for (qw(all_elements all_element all_elems all_elem of)) {

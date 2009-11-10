@@ -36,13 +36,17 @@ Example invalid data:
 
 use Moose;
 extends 'Data::Schema::Type::Base';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasLength';
 use Storable qw/freeze/;
 
-sub cmp {
+sub _equal {
     my ($self, $a, $b) = @_;
-    my $res = freeze($a) cmp freeze($b);
-    return 0 if $res == 0;
-    return undef; # because -1 or 1 doesn't make any sense (yet) for hash
+    (freeze($a) cmp freeze($b)) == 0;
+}
+
+sub _length {
+    my ($self, $data) = @_;
+    scalar keys %$data;
 }
 
 sub handle_pre_check_attrs {
@@ -56,93 +60,12 @@ sub handle_pre_check_attrs {
 
 =head1 TYPE ATTRIBUTES
 
-Aside from most attributes derived from L<Data::Schema::Type::Base> like
-B<is>, B<one_of>, hash also has these type attributes:
+Hashes are Comparable and HasLength, so you might want to consult the docs of
+those roles to see what type attributes are available.
 
-=head2 max_len => N
-
-Require that hash does not have more than N keys.
-
-Synonyms: maxlen, max_length, maxlength
+Aside from those, hash also has these type attributes:
 
 =cut
-
-sub handle_attr_max_len {
-    my ($self, $data, $arg) = @_;
-    if (keys(%$data) > $arg) {
-        $self->validator->log_error("number of keys must not exceed $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_maxlen { handle_attr_max_len(@_) }
-sub handle_attr_max_length { handle_attr_max_len(@_) }
-sub handle_attr_maxlength { handle_attr_max_len(@_) }
-
-=head2 min_len => N
-
-Require that hash does not have less than N keys.
-
-Synonyms: minlen, min_length, minlength
-
-=cut
-
-sub handle_attr_min_len {
-    my ($self, $data, $arg) = @_;
-    if (keys(%$data) < $arg) {
-        $self->validator->log_error("number of keys must be at least $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_minlen { handle_attr_min_len(@_) }
-sub handle_attr_min_length { handle_attr_min_len(@_) }
-sub handle_attr_minlength { handle_attr_min_len(@_) }
-
-=head2 len_between => [MIN, MAX]
-
-A convenience attribute which combines max_len and min_len.
-
-Synonyms: length_between
-
-=cut
-
-sub handle_attr_len_between {
-    my ($self, $data, $arg) = @_;
-    my $l = keys(%$data);
-    if ($l < $arg->[0] || $l > $arg->[1]) {
-        $self->validator->log_error("number of keys must be between $arg->[0] and $arg->[1])");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length_between { handle_attr_len_between(@_) }
-
-=head2 len => N
-
-Require that hash have exactly N keys.
-
-Synonyms: length
-
-=cut
-
-sub handle_attr_len {
-    my ($self, $data, $arg) = @_;
-    if (keys(%$data) != $arg) {
-        $self->validator->log_error("number of keys must be $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length { handle_attr_len(@_) }
 
 sub _for_each_key {
     my ($self, $data, $arg, $checkfail_sub) = @_;
@@ -574,7 +497,7 @@ sub handle_attr_values_not_match {
                          });
 }
 
-sub type_in_english {
+sub english {
     my ($self, $schema, $opt) = @_;
     $schema = $self->validator->normalize_schema($schema)
         unless ref($schema) eq 'HASH';
@@ -589,9 +512,9 @@ sub type_in_english {
             $sv = $self->validator->normalize_schema($sv) unless ref($sv) eq 'HASH';
             my $th;
             $th = $self->validator->get_type_handler($sk->{type});
-            my $ek = $th->type_in_english($sk, $opt);
+            my $ek = $th->english($sk, $opt);
             $th = $self->validator->get_type_handler($sv->{type});
-            my $ev = $th->type_in_english($sk, $opt);
+            my $ev = $th->english($sk, $opt);
             return "hash of ($ek => $ev)";
         }
         for my $alias (qw/keys_of/) {
@@ -600,7 +523,7 @@ sub type_in_english {
             $sk = $self->validator->normalize_schema($sk) unless ref($sk) eq 'HASH';
             my $th;
             $th = $self->validator->get_type_handler($sk->{type});
-            my $ek = $th->type_in_english($sk, $opt);
+            my $ek = $th->english($sk, $opt);
             return "hash of ($ek => ...)";
         }
         for my $alias (qw/values_of/) {
@@ -609,7 +532,7 @@ sub type_in_english {
             $sv = $self->validator->normalize_schema($sv) unless ref($sv) eq 'HASH';
             my $th;
             $th = $self->validator->get_type_handler($sv->{type});
-            my $ev = $th->type_in_english($sv, $opt);
+            my $ev = $th->english($sv, $opt);
             return "hash of (... => $ev)";
         }
     }
@@ -631,4 +554,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

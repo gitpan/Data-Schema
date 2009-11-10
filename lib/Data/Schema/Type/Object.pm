@@ -34,10 +34,6 @@ use Moose;
 extends 'Data::Schema::Type::Base';
 use Scalar::Util 'blessed';
 
-sub cmp {
-    return undef; # XXX currently we don't provide comparison, maybe we should
-}
-
 sub handle_pre_check_attrs {
     my ($self, $data) = @_;
     if (!blessed($data)) {
@@ -218,7 +214,7 @@ sub handle_attr_not_isa {
     1;
 }
 
-sub type_in_english {
+sub english {
     "object";
     # XXX isa_one, isa_all, can_one, can_all
 }
@@ -238,4 +234,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

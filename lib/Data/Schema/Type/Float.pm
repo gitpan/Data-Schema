@@ -22,13 +22,13 @@ override handle_pre_check_attrs => sub {
     # XXX extra check when Num support other non-floats, e.g. complex, rational
 };
 
-sub type_in_english {
+sub english {
     "float";
 }
 
 =head1 TYPE ATTRIBUTES
 
-See L<Data::Schema::Type::Base>.
+See L<Data::Schema::Type::Num>.
 
 =head1 AUTHOR
 
@@ -45,4 +45,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

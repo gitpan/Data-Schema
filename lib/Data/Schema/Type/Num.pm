@@ -16,9 +16,15 @@ This is base class for number types, like 'int' and 'float'.
 
 use Moose;
 extends 'Data::Schema::Type::Base';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::Sortable';
 use Scalar::Util qw/looks_like_number/;
 
-sub cmp {
+sub _equal {
+    my ($self, $a, $b) = @_;
+    ($a == $b);
+}
+
+sub _compare {
     my ($self, $a, $b) = @_;
     $a <=> $b;
 }
@@ -32,9 +38,14 @@ sub handle_pre_check_attrs {
     1;
 }
 
-sub type_in_english {
+sub english {
     "number";
 }
+
+=head1 TYPE ATTRIBUTES
+
+Numbers are Comparable and Sortable, so you might want to consult the docs of
+those roles to see what type attributes are available.
 
 =head1 AUTHOR
 
@@ -51,4 +62,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

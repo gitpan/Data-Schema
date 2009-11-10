@@ -1,5 +1,10 @@
 Revision history for Data-Schema
 
+0.08    2009-11-06
+        - refactor: use Moose role: Comparable, Sortable, and HasLength
+        - refactor: change type_in_english() to english()
+        - add no Moose to every Moose classes
+        
 0.07    2009-08-05
         - optimization: defer loading default type handlers until
           needed (for slightly better startup speed)

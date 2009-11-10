@@ -137,15 +137,15 @@ ok(!$res->{success} && $res->{errors}[0] =~ /suffix/, 'unknown attribute suffix'
 # _pos_as_str escapes whitespaces
 is($ds->_pos_as_str(["a", "b ", " c", "  d "]), "a/b_/_c/_d_", "_pos_as_str and whitespace");
 
-# casual tests for type_in_english
-test_type_in_english('int', 'int', 'type_in_english 1', $ds);
-test_type_in_english(["array"], 'array', 'type_in_english 2', $ds);
-test_type_in_english([array=>{of=>"str"}], 'array of (string)', 'type_in_english 3', $ds);
-test_type_in_english([hash=>{of=>["float", "object"]}],
-                     'hash of (float => object)', 'type_in_english 4', $ds);
-test_type_in_english([any=>{of=>["int", [array=>{all_elems=>"int"}]]}],
-                     '(int) or (array of (int))', 'type_in_english 5', $ds);
-test_type_in_english([all=>{of=>["int", "float"]}],
-                     '(int) as well as (float)', 'type_in_english 6', $ds);
+# casual tests for english
+test_english('int', 'int', 'english 1', $ds);
+test_english(["array"], 'array', 'english 2', $ds);
+test_english([array=>{of=>"str"}], 'array of (string)', 'english 3', $ds);
+test_english([hash=>{of=>["float", "object"]}],
+                     'hash of (float => object)', 'english 4', $ds);
+test_english([any=>{of=>["int", [array=>{all_elems=>"int"}]]}],
+                     '(int) or (array of (int))', 'english 5', $ds);
+test_english([all=>{of=>["int", "float"]}],
+                     '(int) as well as (float)', 'english 6', $ds);
 
 # TODO: register_plugin, unknown plugin

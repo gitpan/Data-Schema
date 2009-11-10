@@ -18,20 +18,27 @@ Synonyms: boolean
 
 use Moose;
 extends 'Data::Schema::Type::Base';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::Sortable';
 
-sub cmp {
+sub _equal {
+    my ($self, $a, $b) = @_;
+    (($a ? 1:0) <=> ($b ? 1:0)) == 0;
+}
+
+sub _compare {
     my ($self, $a, $b) = @_;
     ($a ? 1:0) <=> ($b ? 1:0);
     # true is considered larger than false
 }
 
-sub type_in_english {
+sub english {
     "bool";
 }
 
 =head1 TYPE ATTRIBUTES
 
-See L<Data::Schema::Type::Base>.
+Numbers are Comparable and Sortable, so you might want to consult the docs of
+those roles to see what type attributes are available.
 
 =head1 AUTHOR
 
@@ -48,4 +55,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

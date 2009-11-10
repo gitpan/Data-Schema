@@ -39,10 +39,6 @@ Example invalid data:
 use Moose;
 extends 'Data::Schema::Type::Base';
 
-sub cmp {
-    return undef; # currently we don't provide comparison
-}
-
 =head1 TYPE ATTRIBUTES
 
 =head2 of => [schema1, schema2, ...]
@@ -74,7 +70,7 @@ sub handle_attr_of {
     return 0;
 }
 
-sub type_in_english {
+sub english {
     my ($self, $schema, $opt) = @_;
     $schema = $self->validator->normalize_schema($schema)
         unless ref($schema) eq 'HASH';
@@ -88,7 +84,7 @@ sub type_in_english {
                     $ss = $self->validator->normalize_schema($ss)
                         unless ref($ss) eq 'HASH';
                     my $th = $self->validator->get_type_handler($ss->{type});
-                    push @e, $th->type_in_english($ss, $opt);
+                    push @e, $th->english($ss, $opt);
                 }
                 return join " or ", map { "($_)" } @e;
             }
@@ -112,4 +108,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

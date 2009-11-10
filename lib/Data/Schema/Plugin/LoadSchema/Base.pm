@@ -26,7 +26,7 @@ has 'met_types' => (is => 'rw');
 =cut
 
 sub BUILD {
-    my $self = shift;
+    my ($self, $args) = @_;
     $self->met_types({}) unless $self->met_types;
 }
 
@@ -93,4 +93,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

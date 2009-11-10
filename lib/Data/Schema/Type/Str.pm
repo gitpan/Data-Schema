@@ -10,16 +10,27 @@ Data::Schema::Type::Str - Type handler for string ('str')
 
 =head1 DESCRIPTION
 
-This is type handler for 'string'.
+This is type handler for 'str'.
 
 =cut
 
 use Moose;
 extends 'Data::Schema::Type::Base';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::Sortable', 'Data::Schema::Type::HasLength';
 
-sub cmp {
+sub _equal {
+    my ($self, $a, $b) = @_;
+    $a eq $b;
+}
+
+sub _compare {
     my ($self, $a, $b) = @_;
     $a cmp $b;
+}
+
+sub _length {
+    my ($self, $data) = @_;
+    length($data);
 }
 
 sub handle_pre_check_attrs {
@@ -33,93 +44,10 @@ sub handle_pre_check_attrs {
 
 =head1 TYPE ATTRIBUTES
 
-In addition to attributes provided from DST::Base, like B<one_of>, B<is>, etc,
-array has some additional attributes:
+Strings are Comparable, Sortable, and HasLength, so you might want to consult
+the docs of those roles to see what type attributes are available.
 
-=head2 len => N
-
-Require that exact length of a string.
-
-Synonyms: length
-
-=cut
-
-sub handle_attr_len {
-    my ($self, $data, $arg) = @_;
-    if (length($data) != $arg) {
-        $self->validator->log_error("length must be $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length { handle_attr_len(@_) }
-
-=head2 max_len => N
-
-Require the maximum length of a string.
-
-Synonyms: maxlen, max_length, maxlength
-
-=cut
-
-sub handle_attr_max_len {
-    my ($self, $data, $arg) = @_;
-    if (length($data) > $arg) {
-        $self->validator->log_error("length must not exceed $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_maxlen { handle_attr_max_len(@_) }
-sub handle_attr_max_length { handle_attr_max_len(@_) }
-sub handle_attr_maxlength { handle_attr_max_len(@_) }
-
-=head2 min_len => N
-
-Require the minimum length of a string.
-
-Synonyms: minlen, min_length, minlength
-
-=cut
-
-sub handle_attr_min_len {
-    my ($self, $data, $arg) = @_;
-    if (length($data) < $arg) {
-        $self->validator->log_error("length must be at least $arg");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_minlen { handle_attr_min_length(@_) }
-sub handle_attr_min_length { handle_attr_min_len(@_) }
-sub handle_attr_minlength { handle_attr_min_len(@_) }
-
-=head2 len_between => [MIN, MAX]
-
-Convenience attribute which combines B<min_len> and B<max_len>.
-
-Synonyms: length_between
-
-=cut
-
-sub handle_attr_len_between {
-    my ($self, $data, $arg) = @_;
-    my $l = length($data);
-    if ($l < $arg->[0] || $l > $arg->[1]) {
-        $self->validator->log_error("length must be between $arg->[0] and $arg->[1])");
-        return;
-    }
-    1;
-}
-
-# aliases
-sub handle_attr_length_between { handle_attr_len_between(@_) }
+In addition to these, string has some additional attributes:
 
 =head2 match => REGEX
 
@@ -161,7 +89,7 @@ sub handle_attr_not_match {
 # aliases
 sub handle_attr_not_matches { handle_attr_not_match(@_) }
 
-sub type_in_english {
+sub english {
     "string";
 }
 
@@ -180,4 +108,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

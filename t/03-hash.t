@@ -24,7 +24,7 @@ valid({}, [hash => {required => 1}], 'required 2');
 
 test_len('hash', {a=>1}, {a=>1, b=>2}, {a=>1, b=>2, c=>3}); # 36
 
-test_is_isnt_oneof('hash', {a=>1}, {b=>1}, {c=>1}, {d=>1}); # 26
+test_comparable('hash', {a=>1}, {b=>1}, {c=>1}, {d=>1}); # 26
 
 # keys_match, values_match = 1x8 = 8
 for (qw(match)) {

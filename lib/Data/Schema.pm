@@ -14,11 +14,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -114,7 +114,7 @@ has schema_pos => (is => 'rw');
 =cut
 
 sub BUILD {
-    my ($self, %args) = shift;
+    my ($self, $args) = @_;
 
     # config
     if ($self->config) {
@@ -135,9 +135,9 @@ sub BUILD {
     }
 
     # add default type handlers
-    if ($args{type_handlers}) {
+    if ($args->{type_handlers}) {
         # some sanity checks
-        die "type_handlers must be a hashref" unless ref($args{type_handlers}) eq 'HASH';
+        die "type_handlers must be a hashref" unless ref($args->{type_handlers}) eq 'HASH';
     } else {
         $self->type_handlers({});
         my %defth = (
@@ -875,4 +875,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;

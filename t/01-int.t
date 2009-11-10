@@ -22,8 +22,8 @@ valid(1, 'integer', 'alias 1');
 
 valid(undef, 'int', 'undef');
 
-test_is_isnt_oneof('int', 1, -2, 3, -4); # 26
-test_min_max('int', -4, 5, 10); # 27
+test_comparable('int', 1, -2, 3, -4); # 26
+test_sortable('int', -4, 5, 10); # 27
 
 # mod
 invalid(10, [int=>{mod=>[3,2]}], 'mod 1');

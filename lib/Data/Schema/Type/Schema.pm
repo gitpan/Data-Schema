@@ -79,7 +79,7 @@ sub handle_type {
     !@$errors;
 }
 
-sub type_in_english {
+sub english {
     "schema";
 }
 
@@ -107,4 +107,5 @@ under the same terms as Perl itself.
 =cut
 
 __PACKAGE__->meta->make_immutable;
+no Moose;
 1;
