@@ -1,5 +1,8 @@
 Revision history for Data-Schema
 
+0.11    2009-11-09
+        - fix broken 0.10 release (HasLength has been replaced)
+
 0.10    2009-11-09
         - new: type attribute 'deps' for HasElement types, specifying
           interelement dependencies.

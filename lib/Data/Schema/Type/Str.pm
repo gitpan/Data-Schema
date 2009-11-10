@@ -16,7 +16,7 @@ This is type handler for 'str'.
 
 use Moose;
 extends 'Data::Schema::Type::Base';
-with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::Sortable', 'Data::Schema::Type::HasLength';
+with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::Sortable', 'Data::Schema::Type::HasElement';
 
 sub _equal {
     my ($self, $a, $b) = @_;
@@ -31,6 +31,16 @@ sub _compare {
 sub _length {
     my ($self, $data) = @_;
     length($data);
+}
+
+sub _element {
+    my ($self, $data, $idx) = @_;
+    substr($data, $idx, 1);
+}
+
+sub _indexes {
+    my ($self, $data) = @_;
+    0..length($data)-1;
 }
 
 sub _rematch {
