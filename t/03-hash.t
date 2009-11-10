@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 148;
+use Test::More tests => 164;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -156,4 +156,34 @@ for (qw(keys_regex)) {
     valid({i=>1, i2=>2}, $sch, "$_ 2");
     invalid({i=>1, i2=>"a"}, $sch, "$_ 3");
     valid({j=>1}, $sch, "$_ 4");
+}
+
+# deps
+for (qw(deps)) {
+    my $sch;
+    # second totally dependant on first
+    $sch = [hash=>{$_ => [[a=>[int=>{set=>1}], b=>[int=>{set=>1}]],
+                          [a=>[int=>{set=>0}], b=>[int=>{set=>0}]] ]}];
+    valid  ({},                  $sch, "$_ 1.1");
+    valid  ({a=>undef,b=>undef}, $sch, "$_ 1.2");
+    invalid({a=>1,b=>undef},     $sch, "$_ 1.3");
+    invalid({a=>undef,b=>1},     $sch, "$_ 1.4");
+    valid  ({a=>1,b=>1},         $sch, "$_ 1.5");
+    # no match
+    valid  ({a=>"a",b=>undef},   $sch, "$_ 1.6");
+    valid  ({a=>"a",b=>1},       $sch, "$_ 1.7");
+    valid  ({a=>"a",b=>"a"},     $sch, "$_ 1.8");
+
+    # mutually exclusive
+    $sch = [hash=>{$_ => [[a=>[int=>{set=>1}], b=>[int=>{set=>0}]],
+                          [a=>[int=>{set=>0}], b=>[int=>{set=>1}]] ]}];
+    invalid({},                  $sch, "$_ 2.1");
+    invalid({a=>undef,b=>undef}, $sch, "$_ 2.2");
+    valid  ({a=>1,b=>undef},     $sch, "$_ 2.3");
+    valid  ({a=>undef,b=>1},     $sch, "$_ 2.4");
+    invalid({a=>1,b=>1},         $sch, "$_ 2.5");
+    # no match
+    valid  ({a=>"a",b=>undef},   $sch, "$_ 2.6");
+    valid  ({a=>"a",b=>1},       $sch, "$_ 2.7");
+    valid  ({a=>"a",b=>"a"},     $sch, "$_ 2.8");
 }

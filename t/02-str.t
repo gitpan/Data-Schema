@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 107;
+use Test::More tests => 143;
 
 BEGIN { use_ok('Data::Schema'); }
 
@@ -34,6 +34,18 @@ for (qw(match matches)) {
 valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
 invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
 
-test_comparable('str', 'a', 'b', 'c', 'd'); # 26
+test_comparable('str', 'a', 'b', 'A', 'B'); # 26
 
 test_sortable('str', 'a', 'b', 'c'); # 27
+
+# cistr
+valid  ('a', [cistr => {is=>"a"}], "cistr:is 1");
+valid  ('a', [cistr => {is=>"A"}], "cistr:is 2");
+valid  ('A', [cistr => {is=>"a"}], "cistr:is 3");
+invalid('a', [cistr => {is=>"b"}], "cistr:is 4");
+valid  ('a', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 1");
+valid  ('A', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 2");
+valid  ('a', [cistr => {one_of=>[qw/A/]}], "cistr:one_of 3");
+valid  ('A', [cistr => {one_of=>[qw/A/]}], "cistr:one_of 4");
+invalid('b', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 5");
+test_sortable('cistr', 'a', 'B', 'c'); # 27

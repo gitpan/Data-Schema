@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 167;
+use Test::More tests => 183;
 
 use_ok('Data::Schema::Type::Array');
 use_ok('Data::Schema');
@@ -91,3 +91,33 @@ invalid([1, 1, 2], [array=>{unique=>1}], 'unique 1');
 valid  ([1, 3, 2], [array=>{unique=>1}], 'unique 2');
 valid  ([1, 1, 2], [array=>{unique=>0}], 'unique 3');
 invalid([1, 3, 2], [array=>{unique=>0}], 'unique 4');
+
+# deps
+for (qw(deps)) {
+    my $sch;
+    # second totally dependant on first
+    $sch = [array=>{$_ => [[0=>[int=>{set=>1}], 1=>[int=>{set=>1}]],
+                           [0=>[int=>{set=>0}], 1=>[int=>{set=>0}]] ]}];
+    valid  ([],            $sch, "$_ 1.1");
+    valid  ([undef,undef], $sch, "$_ 1.2");
+    invalid([1,undef],     $sch, "$_ 1.3");
+    invalid([undef,1],     $sch, "$_ 1.4");
+    valid  ([1,1],         $sch, "$_ 1.5");
+    # no match
+    valid  (["a",undef],   $sch, "$_ 1.6");
+    valid  (["a",1],       $sch, "$_ 1.7");
+    valid  (["a","a"],     $sch, "$_ 1.8");
+
+    # mutually exclusive
+    $sch = [array=>{$_ => [[0=>[int=>{set=>1}], 1=>[int=>{set=>0}]],
+                           [0=>[int=>{set=>0}], 1=>[int=>{set=>1}]] ]}];
+    invalid([],            $sch, "$_ 2.1");
+    invalid([undef,undef], $sch, "$_ 2.2");
+    valid  ([1,undef],     $sch, "$_ 2.3");
+    valid  ([undef,1],     $sch, "$_ 2.4");
+    invalid([1,1],         $sch, "$_ 2.5");
+    # no match
+    valid  (["a",undef],   $sch, "$_ 2.6");
+    valid  (["a",1],       $sch, "$_ 2.7");
+    valid  (["a","a"],     $sch, "$_ 2.8");
+}

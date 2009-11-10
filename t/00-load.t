@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 18;
+use Test::More tests => 19;
 
 BEGIN {
 	use_ok( 'Data::Schema' );
@@ -11,6 +11,7 @@ BEGIN {
 	use_ok( 'Data::Schema::Type::Hash' );
 	use_ok( 'Data::Schema::Type::Array' );
 	use_ok( 'Data::Schema::Type::Str' );
+	use_ok( 'Data::Schema::Type::CIStr' );
 	#use_ok( 'Data::Schema::Type::Num' );
 	use_ok( 'Data::Schema::Type::Int' );
 	use_ok( 'Data::Schema::Type::Float' );

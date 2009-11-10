@@ -1,5 +1,10 @@
 Revision history for Data-Schema
 
+0.10    2009-11-09
+        - new: type attribute 'deps' for HasElement types, specifying
+          interelement dependencies.
+        - new: type 'cistr' (case-insensitive string)
+
 0.09    2009-11-08
         - now requires Data::PrefixMerge 0.06
         - new: type attribute 'forbidden' (the opposite of 'required'), which

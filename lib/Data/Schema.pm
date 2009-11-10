@@ -15,11 +15,11 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-Version 0.09
+Version 0.10
 
 =cut
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 =head1 SYNOPSIS
 
@@ -137,6 +137,7 @@ sub BUILD {
         $self->type_handlers({});
         my %defth = (
             str     => 'Str',
+            cistr   => 'CIStr',
             bool    => 'Bool',
             hash    => 'Hash',
             array   => 'Array',
@@ -147,13 +148,14 @@ sub BUILD {
             all     => 'All',
         );
         # aliases (XXX should not create handler object for all the aliases)
-        $defth{string}  = $defth{str};
-        $defth{boolean} = $defth{bool};
-        $defth{integer} = $defth{int};
-        $defth{and}     = $defth{all};
-        $defth{or}      = $defth{either};
-        $defth{any}     = $defth{either};
-        $defth{obj}     = $defth{object};
+        $defth{string}   = $defth{str};
+        $defth{cistring} = $defth{cistr};
+        $defth{boolean}  = $defth{bool};
+        $defth{integer}  = $defth{int};
+        $defth{and}      = $defth{all};
+        $defth{or}       = $defth{either};
+        $defth{any}      = $defth{either};
+        $defth{obj}      = $defth{object};
         $self->register_type($_, "Data::Schema::Type::$defth{$_}") for keys %defth;
     }
 
@@ -619,13 +621,32 @@ sub validate {
     $self->_validate($data, $schema);
     $self->schema($saved_schema);
 
-    # XXX DECISION: only ds_validate() format error and warnings?
-
     {success  => !@{$self->errors},
-     errors   => [map { sprintf "data\@%s schema\@%s %s", $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]), $_->[2] } @{ $self->errors   }],
-     warnings => [map { sprintf "data\@%s schema\@%s %s", $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]), $_->[2] } @{ $self->warnings }],
+     errors   => [$self->errors_as_array],
+     warnings => [$self->warnings_as_array],
     };
-    #{errors=>$self->errors, warnings=>$self->warnings};
+}
+
+=head2 errors_as_array
+
+Return formatted errors in an array of strings.
+
+=cut
+
+sub errors_as_array {
+    my ($self) = @_;
+    map { sprintf "data\@%s schema\@%s %s", $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]), $_->[2] } @{ $self->errors };
+}
+
+=head2 warnings_as_array
+
+Return formatted warnings in an array of strings.
+
+=cut
+
+sub warnings_as_array {
+    my ($self) = @_;
+    map { sprintf "data\@%s schema\@%s %s", $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]), $_->[2] } @{ $self->warnings };
 }
 
 # the difference between validate() and _validate(): _validate() is not for the
@@ -715,7 +736,7 @@ mean it won't change in the future. DS can already do decent validation, there
 are already several basic types each with a decent set of attributes. But some
 "standard" stuffs present in other modules are still absent in DS: handling of
 default values and filters. These will be added in future releases along with
-other planned features like variable substitution, interdependency, etc.
+other planned features like variable substitution, etc.
 
 
 =head2 PERFORMANCE NOTES

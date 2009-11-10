@@ -1,6 +1,8 @@
+my $Default_DS;
 sub _valid_invalid($$;$) {
     my ($data, $schema, $ds) = @_;
-    $ds ||= Data::Schema->new;
+    if (!$Default_DS) { $Default_DS = Data::Schema->new }
+    $ds ||= $Default_DS;
     $ds->validate($data, $schema);
 }
 

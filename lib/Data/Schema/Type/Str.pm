@@ -33,6 +33,11 @@ sub _length {
     length($data);
 }
 
+sub _rematch {
+    my ($self, $str, $re) = @_;
+    $str =~ qr/$re/;
+}
+
 sub handle_pre_check_attrs {
     my ($self, $data) = @_;
     if (ref($data)) {
@@ -59,7 +64,7 @@ Synonyms: matches
 
 sub handle_attr_match {
     my ($self, $data, $arg) = @_;
-    if ($data !~ qr/$arg/) {
+    if (!$self->_rematch($data, $arg)) {
         $self->validator->log_error("must match regex $arg");
         return;
     }
@@ -79,7 +84,7 @@ Synonyms: not_matches
 
 sub handle_attr_not_match {
     my ($self, $data, $arg) = @_;
-    if ($data =~ qr/$arg/) {
+    if ($self->_rematch($data, $arg)) {
         $self->validator->log_error("must not match regex $arg");
         return;
     }
