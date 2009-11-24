@@ -1,5 +1,31 @@
 Revision history for Data-Schema
 
+0.12    2009-11-20
+        - new: DS now can compile schema to Perl code for much
+          speedier validation
+	- INCOMPATIBLE CHANGE: required_keys_regex and required_keys
+          for hash used to require that is defined. now it
+          isn't. i.e.: ds_validate({a=>undef},
+          [hash=>{required_keys=>['a']}]) used to fail, now
+          succeed. to require that value are defined, use
+          'required'=>1.
+	- INCOMPATIBLE CHANGE: hash's "of" attribute is now changed to
+          mean (become an alias for) "values_of". The original "of"
+          meaning is removed because it is easily misused/forgotten.
+	- INCOMPATIBLE CHANGE: attribute suffix syntax
+          (e.g. minlen.errmsg) now changed to using ':'
+          (e.g. minlen:errmsg, minlen:ui) to avoid clash between
+          attributeless suffix (':errmsg') and merge prefix '.'
+        - spelling change: int's attribute: undivisible_by ->
+          indivisible_by
+        - new attribute suffix: ':errmsg' for error message
+	- new: type attribute 'allow_extra_keys' for hash
+	- new: add short_english() in type handler
+        - removed: validate() no longer return 'warnings' (they are
+          never used anyway)
+        - rearrange tests
+        - fix bug in attribute hash merging
+        
 0.11    2009-11-09
         - fix broken 0.10 release (HasLength has been replaced)
 

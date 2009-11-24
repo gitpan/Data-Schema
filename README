@@ -1,69 +1,344 @@
-Data-Schema
+NAME
+    Data::Schema - Validate nested data structures with nested structure
 
-Data::Schema lets you validate nested data structures with a nested
-structure as a schema.
+VERSION
+    version 0.12
 
-Some examples:
+SYNOPSIS
+        # OO interface
+        use Data::Schema;
+        my $ds = Data::Schema->new();
+        my $schema = [array => {min_len=>2, max_len=>4}];
+        my $data = [1, 2, 3];
+        my $res = $ds->validate($data, $schema);
+        print "valid!" if $res->{success}; # prints 'valid!'
 
- "int"
+        # procedural interface
+        use Data::Schema;
+        my $sch = ["hash",
+                   {keys =>
+                        {name => "str",
+                         age  => ["int", {required=>1, min=>18}]
+                        }
+                    }
+                  ];
+        my $r;
+        $r = ds_validate({name=>"Lucy", age=>18}, $sch); # success
+        $r = ds_validate({name=>"Lucy"         }, $sch); # fail: missing age
+        $r = ds_validate({name=>"Lucy", age=>16}, $sch); # fail: underage
 
-The above schema requires that data is an integer.
+        # some schema examples
 
- [int => {min=>0, max=>100}]
+        # -- array
+        "array"
 
-The above schema requires that data is an integer between 0 and 100.
+        # -- array of ints
+        [array => {of=>"int"}]
 
- {
-   def => {
-     even => [int => {divisible_by=>2}],
-     odd  => [int => {mod=>[2, 1]}],
-     my_array => [any => {of=>[qw/even odd/]}],
-   },
-   type => "my_array"
- }
+        # -- array of positive, even ints
+        [array => {of=>[int => {min=>0, divisible_by=>2}]}]
 
-The above schema requires that data is an array of just even numbers
-OR just odd numbers.
+        # -- 3x3x3 "multi-dim" arrays
+        [array => {len=>3, of=>
+            [array => {len=>3, of=>
+                [array => {len=>3}]}]}]
 
-As you can see, the schema can be very simple or complex depending on
-your requirements.
+        # -- HTTP headers, each header can be a string or array of strings
+        [hash => {
+            required => 1,
+            keys_match => '^\w+(-w+)*$',
+            values_of => [either => {of=>[
+                "str",
+                [array=>{of=>"str", minlen=>1}],
+            ]}],
+        }]
 
+        # -- records (demonstrates subschema and attribute merging). Note:
+        # I am not sexist or anything, just that for the love of g*d I
+        # can't think of a better example atm. it's late...
+        {def => {
+            person => [hash => {
+                keys => {
+                    name       => "str",
+                    race       => "str",
+                    age        => [int => {min=>0, max=>100}],
+                },
+            }],
 
-INSTALLATION
+            # women are like people, but they have additional keys
+            # 'husband' and 'cup_size' (additive) and different age
+            # restriction (replace).
 
-To install this module, run the following commands:
+            woman => [person => {
+                '*keys' => {
+                    husband    => "str",
+                    cup_size   => [str => {one_of=>[qw/AA A B C D DD/]}],
+                    '*age'     => [int => {min=>0, max=>120}],
+                },
+            }],
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+            # girls are like women, but they do not have husbands yet
+            # (remove keys)
 
-SUPPORT AND DOCUMENTATION
+            girl => [woman => {
+                '*keys' => {
+                    '!husband' => undef,
+                }
+            }],
 
-After installing, you can find documentation for this module with the
-perldoc command.
+            girls  => [array => {of=>"girl"}],
+        },
+        type => "girls",
+        };
 
-    perldoc Data::Schema
+DESCRIPTION
+    Data::Schema (DS) is a schema system for data validation. It lets you
+    write schemas as data structures, ranging from very simple (a scalar) to
+    fairly complex (nested hashes/arrays with various criteria).
 
-You can also look for information at:
+    Writing schemas as data structures themselves has several advantages.
+    First, it is more portable across languages (e.g. using YAML to share
+    schemas between Perl, Python, PHP, Ruby). Second, you can validate the
+    schema using the schema system itself. Third, it is easy to generate
+    code, help message (e.g. so-called "usage" for function/command line
+    script), etc. from the schema.
 
-    RT, CPAN's request tracker
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=Data-Schema
+    Potential application of DS: validating configuration, function
+    parameters, command line arguments, etc.
 
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/Data-Schema
+    To get started, see Data::Schema::Manual::Tutorial.
 
-    CPAN Ratings
-        http://cpanratings.perl.org/d/Data-Schema
+FUNCTIONS
+  ds_validate($data, $schema)
+    Non-OO wrapper for validate(). Exported by default. See "validate()"
+    method.
 
-    Search CPAN
-        http://search.cpan.org/dist/Data-Schema/
+ATTRIBUTES
+  config
+    Configuration object. See Data::Schema::Config.
 
+METHODS
+  merge_attr_hashes($attr_hashes)
+    Merge several attribute hashes if there are hashes that can be merged
+    (i.e. contains merge prefix in its keys). Used by DST::Base and
+    DST::Schema. As DS user, normally you wouldn't need this.
 
-COPYRIGHT AND LICENCE
+  init_validation_state()
+    Initialize validation state. Used internally by validate(). As DS user,
+    normally you wouldn't need this.
 
-Copyright (C) 2009 Steven Haryanto
+  save_validation_state()
+    Save validation state (position in data, position in schema, number of
+    errors, etc) into a stack, so that you can start using the validator to
+    validate a new data with a new schema, even in the middle of validating
+    another data/schema. Used internally by validate() and DST::Schema. As
+    DS user, normally you wouldn't need this.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+    See also: restore_validation_state().
+
+  restore_validation_state()
+    Restore the last validation state from the stack. Used internally by
+    validate() and DST::Schema. As DS user, normally you wouldn't need this.
+
+    See also: save_validation_state().
+
+  init_compilation_state()
+    Initialize compilation state. Used internally by emit_perl(). As DS
+    user, normally you wouldn't need this.
+
+  save_compilation_state()
+    Save compilation state. Used internally by emit_perl() and DST::Schema.
+    As DS user, normally you wouldn't need this.
+
+    See also: restore_compilation_state().
+
+  restore_compilation_state()
+    Restore the last compilation state from the stack. Used internally by
+    emit_perl() and DST::Schema. As DS user, normally you wouldn't need
+    this.
+
+    See also: save_compilation_state().
+
+  data_error($message)
+    Add a data error when in validation process. Will not add if there are
+    already too many errors ("too_many_errors" attribute is true). Used by
+    type handlers. As DS user, normally you wouldn't need this.
+
+  schema_error($message)
+    Method to call when encountering schema error during
+    validation/compilation. Used by type handlers. As DS user, normally you
+    wouldn't need this.
+
+  check_type_name($name)
+    Checks whether $name is a valid type name. Returns true if valid, false
+    if invalid. By default it requires that type name starts with a
+    lowercase letter and contains only lowercase letters, numbers, and
+    underscores. Maximum length is 64.
+
+    You can override this method if you want stricter/looser type name
+    criteria.
+
+  register_type($name, $class|$obj)
+    Register a new type, along with a class name ($class) or the actual
+    object ($obj) to handle the type. If $class is given, the class will be
+    require'd and instantiated to become object later when needed via
+    get_type_handler.
+
+    Any object can become a type handler, as long as it has:
+
+    *   a "validator()" rw property to store/set validator object;
+
+    *   "handle_type()" method to handle type checking;
+
+    *   zero or more "handle_attr_*()" methods to handle attribute checking.
+
+    See Data::Schema::Manual::TypeHandler for more details on writing a type
+    handler.
+
+  register_plugin($class|$obj)
+    Register a new plugin. Accept a plugin object or class. If $class is
+    given, the class will be require'd (if not already require'd) and
+    instantiated to become object.
+
+    Any object can become a plugin, you don't need to subclass from
+    anything, as long as it has:
+
+    *   a "validator()" rw property to store/set validator object;
+
+    *   zero or more "handle_*()" methods to handle some events/hooks.
+
+    See Data::Schema::Manual::Plugin for more details on writing a plugin.
+
+  call_handler($name, [@args])
+    Try handle_*() method from each registered plugin until one returns 0 or
+    1. If a plugin return -1 (decline) then we continue to the next plugin.
+    Returns the status of the last plugin. Returns -1 if there's no handler
+    to invoke.
+
+  get_type_handler($name)
+    Try to get type handler for a certain type. If type handler is not an
+    object (a class name), instantiate it first. If type is not found,
+    invoke handle_unknown_type() in plugins to give plugins a chance to load
+    the type. If type is still not found, return undef.
+
+  normalize_schema($schema)
+    Normalize a schema into the third form (hash form) ({type=>...,
+    attr_hashes=>..., def=>...) as well as do some sanity checks on it.
+    Returns an error message string if fails.
+
+  register_schema_as_type($schema, $name)
+    Register schema as new type. $schema is a normalized schema. Return
+    {success=>(0 or 1), error=>...}. Fails if type with name $name is
+    already defined, or if $schema cannot be parsed. Might actually register
+    more than one type actually, if the schema contains other types in it
+    (hash form of schema can define types).
+
+  validate($data[, $schema])
+    Validate a data structure. $schema must be given unless you already give
+    the schema via the schema attribute.
+
+    Returns {success=>0 or 1, errors=>[...]}. The 'success' key will be set
+    to 1 if the data validates, otherwise 'errors' will be filled with the
+    details.
+
+  errors_as_array
+    Return formatted errors in an array of strings.
+
+  emit_perl([$schema])
+    Return Perl code equivalent to schema $schema.
+
+    If you want to get the compiled code (as a coderef) directly, use
+    "compile".
+
+  compile($schema)
+    Compile the schema into Perl code and return a 2-element list:
+    ($coderef, $subname). $coderef is the resulting subroutine and $subname
+    is the subroutine name in the compilation namespace
+    (Data::Schema::__compiled).
+
+    If the same schema is already compiled, the existing compiled subroutine
+    is returned instead.
+
+    Dies if code can't be generated, or an error occured when compiling the
+    code.
+
+    If you just want to get the Perl code in a string, use "emit_perl".
+
+COMPARISON WITH OTHER DATA VALIDATION MODULES
+    There are already a lot of data validation modules on CPAN. However,
+    most of them do not validate nested data structures. Many seem to focus
+    only on "form" (which is usually presented as shallow hash in Perl).
+
+    And of the rest which do nested data validation, either I am not really
+    fond of the syntax, or the validator/schema system is not
+    simple/flexible/etc enough for my taste. For example, other data
+    validation modules might require you to always write:
+
+     { type => "int" }
+
+    even when all you want is just validating an int with no other extra
+    requirements. With DS you can just write:
+
+     "int"
+
+    Another design consideration for DS is, I want to maximize reusability
+    of my schemas. And thus DS allows you to define schemas in terms of
+    other schemas. External schemas can be "require"-d from Perl variables
+    or loaded from YAML files.
+
+    DS is still in its early phase of development, but I am already starting
+    to use it in production. I am quite content with the current syntax, but
+    that doesn't mean it won't change in the future. DS can already do
+    decent validation, there are already several basic types each with a
+    decent set of attributes. But some "standard" stuffs present in other
+    modules are still absent in DS: handling of default values and filters.
+    These will be added in future releases along with other planned features
+    like variable substitution, etc.
+
+SEE ALSO
+    Data::Schema::Manual::Tutorial, Data::Schema::Manual::Schema,
+    Data::Schema::Manual::TypeHandler, Data::Schema::Manual::Plugin
+
+    Some other data validation modules on CPAN: Data::FormValidator,
+    Data::Rx, Kwalify.
+
+BUGS
+    Please report any bugs or feature requests to "bug-data-schema at
+    rt.cpan.org", or through the web interface at
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Data-Schema>. I will be
+    notified, and then you'll automatically be notified of progress on your
+    bug as I make changes.
+
+SUPPORT
+    You can find documentation for this module with the perldoc command.
+
+        perldoc Data::Schema
+
+    You can also look for information at:
+
+    *   RT: CPAN's request tracker
+
+        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=Data-Schema>
+
+    *   AnnoCPAN: Annotated CPAN documentation
+
+        <http://annocpan.org/dist/Data-Schema>
+
+    *   CPAN Ratings
+
+        <http://cpanratings.perl.org/d/Data-Schema>
+
+    *   Search CPAN
+
+        <http://search.cpan.org/dist/Data-Schema/>
+
+ACKNOWLEDGEMENTS
+AUTHOR
+      Steven Haryanto <stevenharyanto@gmail.com>
+
+COPYRIGHT AND LICENSE
+    This software is copyright (c) 2009 by Steven Haryanto.
+
+    This is free software; you can redistribute it and/or modify it under
+    the same terms as the Perl 5 programming language system itself.
 

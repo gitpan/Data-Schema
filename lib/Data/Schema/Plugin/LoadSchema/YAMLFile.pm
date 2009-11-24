@@ -1,4 +1,8 @@
 package Data::Schema::Plugin::LoadSchema::YAMLFile;
+our $VERSION = '0.12';
+
+
+# ABSTRACT: Plugin to load schemas from YAML files
 
 use Moose;
 use File::Slurp;
@@ -6,9 +10,52 @@ use YAML::XS;
 
 extends 'Data::Schema::Plugin::LoadSchema::Base';
 
+
+sub get_schema {
+    my ($self, $name) = @_;
+    my $path;
+    my $found;
+
+    my $sp = $self->validator->config->schema_search_path;
+    for my $dir (ref($sp) eq 'ARRAY' ? @$sp : $sp) {
+        my $path0 = "$dir/$name";
+        while (1) {
+            $path = $path0;
+            #print "DEBUG: YAMLFile: trying $path ...\n";
+            (-f $path) and do { $found++; last };
+            for my $ext (qw(yaml yml)) {
+                $path = "$path0.$ext";
+                #print "DEBUG: YAMLFile: trying $path ...\n";
+                (-f $path) and do { $found++; last };
+            }
+            last;
+        }
+        last if $found;
+    }
+
+    if ($found) {
+	#print "DEBUG: found YAML file $path, loading ...\n";
+        my $content = read_file($path);
+	($content) = $content =~ /(.*)/s; # untaint
+	return Load($content);
+    }
+    return;
+}
+
+__PACKAGE__->meta->make_immutable;
+no Moose;
+1;
+
+__END__
+=pod
+
 =head1 NAME
 
 Data::Schema::Plugin::LoadSchema::YAMLFile - Plugin to load schemas from YAML files
+
+=head1 VERSION
+
+version 0.12
 
 =head1 SYNOPSIS
 
@@ -34,51 +81,16 @@ Return schema loaded from YAML file, or C<undef> if not found. List of
 directories to search for is specified in validator's C<schema_search_path>
 config variable. "$name", "$name.{yaml,yml}" files will be searched for.
 
-=cut
-
-sub get_schema {
-    my ($self, $name) = @_;
-    my $path;
-    my $found;
-
-    my $sp = $self->validator->config->schema_search_path;
-    for my $dir (ref($sp) eq 'ARRAY' ? @$sp : $sp) {
-        my $path0 = "$dir/$name";
-        while (1) {
-            $path = $path0;
-            #print "searching for $path ...\n";
-            (-f $path) and do { $found++; last };
-            for my $ext (qw(yaml yml)) {
-                $path = "$path0.$ext";
-                #print "searching for $path ...\n";
-                (-f $path) and do { $found++; last };
-            }
-            last;
-        }
-        last if $found;
-    }
-
-    if ($found) {
-        return Load(scalar read_file($path));
-        return 1;
-    }
-    return;
-}
-
 =head1 AUTHOR
 
-Steven Haryanto, C<< <steven at masterweb.net> >>
+  Steven Haryanto <stevenharyanto@gmail.com>
 
-=head1 COPYRIGHT & LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+This software is copyright (c) 2009 by Steven Haryanto.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
-1;

@@ -2,15 +2,15 @@
 
 use strict;
 use warnings;
-use Test::More tests => 28;
+use Test::More;
 use Test::Exception;
 use FindBin '$Bin';
+use Scalar::Util qw/tainted/;
 
-BEGIN {
-    use_ok('Data::Schema::Type::Schema');
-    use_ok('Data::Schema::Plugin::LoadSchema::YAMLFile');
-    use_ok('Data::Schema');
-}
+($Bin) = $Bin =~ /(.*)/; # untaint
+#print "\$Bin tainted? ", tainted($Bin), "\n";
+
+use Data::Schema;
 
 use lib './t';
 require 'testlib.pm';
@@ -49,3 +49,5 @@ invalid({line1=>1, city=>1, province=>1, country=>"US", zipcode=>12345}, 'addres
 valid({line1=>1, city=>1, province=>1, country=>"US", zipcode=>12345}, 'us_address', 'schema on schema + merge 4', $ds);
 invalid({line1=>1, city=>1, province=>1, country=>"ID", zipcode=>12345}, 'us_address', 'schema on schema + merge 5', $ds);
 invalid({line1=>1, city=>1, province=>1, country=>"US", postcode=>12345}, 'us_address', 'schema on schema + merge 6', $ds);
+
+done_testing();

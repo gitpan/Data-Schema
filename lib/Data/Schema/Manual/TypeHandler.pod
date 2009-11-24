@@ -1,12 +1,25 @@
+# just to make PodWeaver happy at the moment
+package Data::Schema::Manual::TypeHandler;
+
+
+__END__
+=pod
+
 =head1 NAME
 
-Data::Schema::Manual::TypeHandler - Writing type handler for Data::Schema
+Data::Schema::Manual::TypeHandler
 
+=head1 VERSION
+
+version 0.12
 
 =head1 OVERVIEW
 
 This document explains how to write type handler using Perl.
 
+=head1 NAME
+
+Data::Schema::Manual::TypeHandler - Writing type handler for Data::Schema
 
 =head1 INTRODUCTION
 
@@ -49,7 +62,7 @@ Called by the validator's _validate() method. $attr_hashes is an arrayref of
 attribute hash. Each attribute hash is a mapping attribute name and values.
 
 Should return 1 when succesful or 0 if fails. If there are errors, please log
-them using $validator->log_error().;
+them using $validator->data_error().;
 
 =head2 handle_attr_NAME($data, $arg)
 
@@ -58,8 +71,7 @@ attribute of name=NAME in the attribute hashes. This makes it convenient to
 support new attribute, by just adding a method with the appropriate name.
 
 Should return 1 when succesful or 0 if fails. If there are errors, please log
-them using $validator->log_error().;
-
+them using $validator->data_error().;
 
 =head1 USING YOUR NEW TYPE
 
@@ -71,14 +83,20 @@ or
 
  $validator->register_type($your_obj);
 
-
 =head1 AUTHOR
-
-Steven Haryanto, C<< <steven at masterweb.net> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+=head1 AUTHOR
 
-This module is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

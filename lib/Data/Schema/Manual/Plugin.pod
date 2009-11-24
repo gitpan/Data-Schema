@@ -1,12 +1,25 @@
+# just to make PodWeaver happy at the moment
+package Data::Schema::Manual::Plugin;
+
+
+__END__
+=pod
+
 =head1 NAME
 
-Data::Schema::Manual::Plugin - Writing plugins for Data::Schema
+Data::Schema::Manual::Plugin
 
+=head1 VERSION
+
+version 0.12
 
 =head1 OVERVIEW
 
 This document is explains how to write plugins for Data::Schema.
 
+=head1 NAME
+
+Data::Schema::Manual::Plugin - Writing plugins for Data::Schema
 
 =head1 INTRODUCTION
 
@@ -18,16 +31,13 @@ property.
 2. has handle_*() methods according to which functionalities it wants
   to supply.
 
-
 =head1 HANDLE_*() METHOD CONVENTION
 
 The convention for handle_*() methods is to return 0 if fail, 1 if succeed, or
 -1 if decline. If a plugin decline to handle some event, the next plugin in the
 list will be tried.
 
-
 =head1 AVAILABLE HANDLE_*() METHODS
-
 
 =head2 handle_unknown_type($type)
 
@@ -51,7 +61,6 @@ This is for type handler. Called by DST::Base's handle_type() method to allow
 subclass type handlers to do attribute checking. For example, if attribute
 B<min> is encountered in the schema, B<handle_attr_min> will be called.
 
-
 =head1 DIFFERENCES FROM TYPE HANDLER
 
 Type handler can be thought of as yet another plugin. The differences are:
@@ -68,7 +77,6 @@ Specifically it will only handle:
 
 3. You also need to supply cmp().
 
-
 =head1 USING YOUR NEW PLUGIN
 
 To use your new plugin, register it via:
@@ -79,18 +87,24 @@ or
 
  $validator->register_plugin($your_obj);
 
-
 =head1 SEE ALSO
 
 L<Data::Schema::Type::Base>.
 
 =head1 AUTHOR
 
-Steven Haryanto, C<< <steven at masterweb.net> >>
-
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+=head1 AUTHOR
 
-This module is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

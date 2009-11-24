@@ -2,10 +2,9 @@
 
 use strict;
 use warnings;
-use Test::More tests => 183;
+use Test::More;
 
-use_ok('Data::Schema::Type::Array');
-use_ok('Data::Schema');
+use Data::Schema;
 
 use lib './t';
 require 'testlib.pm';
@@ -20,11 +19,10 @@ invalid(\1, 'array', 'refscalar');
 
 valid([], [array => {required => 1}], 'required 1');
 
-test_len('array', [1], [1,2], [1,2,3]); # 36
+test_len('array', [1], [1,2], [1,2,3]);
 
-test_comparable('array', [1], [2], [3], [4]); # 62
+test_comparable('array', [1], [2], [3], [4]);
 
-# all_elements = 5x3=15
 for (qw(all_elements all_element all_elems all_elem of)) {
     my $sch = [array=>{$_=>"int"}];
     valid([], $sch, "$_ 1");
@@ -32,7 +30,6 @@ for (qw(all_elements all_element all_elems all_elem of)) {
     invalid([1, "a"], $sch, "$_ 3");
 }
 
-# some_of 1x10=10
 for (qw(some_of)) {
     # at least one int, exactly 2 strings, at most one array. note: str is also int
     my $sch = [array=>{$_=>[ [int=>1,-1], [str=>2,2], [array=>0,1] ]}];
@@ -52,7 +49,6 @@ for (qw(some_of)) {
     invalid([], $sch, "$_ 10");
 }
 
-# elements 4x12 = 48
 for (qw(elements element elems elem)) {
     my $sch = [array=>{$_=>["int", "str", [str=>{minlen=>2}]]}];
     valid([], $sch, "$_ 1.1");
@@ -71,28 +67,26 @@ for (qw(elements element elems elem)) {
     valid([[], [2]], $sch, "$_ 2.5");
 }
 
-# elements_regex 4x5 = 20
 for (qw(
      elements_regex
      element_regex
      elems_regex
      elem_regex
      )) {
-    my $sch = [array=>{$_=>{'^0|1$'=>'int'}}];
+    my $sch = [array=>{$_=>{'^(0|1)$'=>'int'}}];
     valid([], $sch, "$_ 1");
     valid([1], $sch, "$_ 2");
     valid([1, 1], $sch, "$_ 3");
     invalid([1, "a"], $sch, "$_ 4");
-    invalid([1, 1, 1], $sch, "$_ 5");
+    valid([1, 1, 1], $sch, "$_ 5");
+    valid([1, 1, "a"], $sch, "$_ 6");
 }
 
-# unique
 invalid([1, 1, 2], [array=>{unique=>1}], 'unique 1');
 valid  ([1, 3, 2], [array=>{unique=>1}], 'unique 2');
 valid  ([1, 1, 2], [array=>{unique=>0}], 'unique 3');
 invalid([1, 3, 2], [array=>{unique=>0}], 'unique 4');
 
-# deps
 for (qw(deps)) {
     my $sch;
     # second totally dependant on first
@@ -120,4 +114,13 @@ for (qw(deps)) {
     valid  (["a",undef],   $sch, "$_ 2.6");
     valid  (["a",1],       $sch, "$_ 2.7");
     valid  (["a","a"],     $sch, "$_ 2.8");
+
+    $sch = [array=>{$_ => [ [0=>"int", 1=>[str=>{minlen=>2, match=>"[A-Z]"}]] ]}];
+    my ($rnc, $rc) = test_validate([0, "a"], $sch);
+    is((scalar @{ $rnc->{errors} }), 2, "$_ passthru schema2 errors");
+    is((scalar @{ $rc ->{errors} }), 2, "$_ passthru schema2 errors (compiled)");
+
+    # TODO: errmsg on deps
 }
+
+done_testing();

@@ -2,15 +2,12 @@
 
 use strict;
 use warnings;
-use Test::More tests => 12;
-
+use Test::More;
 use lib './t';
 require 'testlib.pm';
 
-use_ok('Data::Schema::Type::All');
-use_ok('Data::Schema');
+use Data::Schema;
 
-# 2x1x5=10
 for my $type (qw(all and)) {
     for (qw(of)) {
         my $sch = [$type => {$_ => [ [int=>{divisible_by=>2}], [int=>{divisible_by=>7}] ]}];
@@ -22,3 +19,7 @@ for my $type (qw(all and)) {
         valid(42, $sch, "$_ 4");
     }
 }
+
+test_scalar_deps('all', "1", {of=>["int", "str"]}, {of=>["int", "str", "hash"]});
+
+done_testing();

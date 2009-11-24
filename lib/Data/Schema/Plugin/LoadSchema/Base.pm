@@ -1,51 +1,28 @@
 package Data::Schema::Plugin::LoadSchema::Base;
+our $VERSION = '0.12';
+
+
+# ABSTRACT: Base class for other DSP::LoadSchema::* plugins
 
 use Moose;
 use Data::Schema::Type::Schema;
 
-=head1 NAME
-
-Data::Schema::Plugin::LoadSchema::Base - Base class for other DSP::LoadSchema::* plugins
-
-=head1 SYNOPSIS
-
-    # see other DSP::LoadSchema::* plugins
-
-=head1 ATTRIBUTES
-
-=head2 validator
-
-=cut
 
 has 'validator' => (is => 'rw');
 
 has 'met_types' => (is => 'rw');
 
-=head1 METHODS
-
-=cut
 
 sub BUILD {
     my ($self, $args) = @_;
     $self->met_types({}) unless $self->met_types;
 }
 
-=head2 get_schema($self, $name)
-
-Return the schema specified by C<$name>, or C<undef> if not found. Override this
-in your subclass.
-
-=cut
 
 sub get_schema {
     return;
 }
 
-=head2 handle_unknown_type($name)
-
-Load and register schema type if found, or -1 if not found.
-
-=cut
 
 sub handle_unknown_type {
     my ($self, $name) = @_;
@@ -73,25 +50,55 @@ sub handle_unknown_type {
     my $res = $self->validator->merge_attr_hashes(\@attr_hashes0);
     die "$prefix: merge error: $res->{error}" if $res->{error};
 
-    my $t = Data::Schema::Type::Schema->new(nschema=>$s);
+    my $t = Data::Schema::Type::Schema->new(nschema=>$s, name=>$name);
     $self->validator->register_type($name => $t);
     1;
 }
 
-=head1 AUTHOR
-
-Steven Haryanto, C<< <steven at masterweb.net> >>
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2009 Steven Haryanto, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
-
-=cut
-
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
+
+__END__
+=pod
+
+=head1 NAME
+
+Data::Schema::Plugin::LoadSchema::Base - Base class for other DSP::LoadSchema::* plugins
+
+=head1 VERSION
+
+version 0.12
+
+=head1 SYNOPSIS
+
+    # see other DSP::LoadSchema::* plugins
+
+=head1 ATTRIBUTES
+
+=head2 validator
+
+=head1 METHODS
+
+=head2 get_schema($self, $name)
+
+Return the schema specified by C<$name>, or C<undef> if not found. Override this
+in your subclass.
+
+=head2 handle_unknown_type($name)
+
+Load and register schema type if found, or -1 if not found.
+
+=head1 AUTHOR
+
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

@@ -2,12 +2,10 @@
 
 use strict;
 use warnings;
-use Test::More tests => 108;
-
-BEGIN {
-    use_ok('Data::Schema');
-    use_ok('Data::Schema::Type::Base');
-}
+use Test::More;
+use Test::Exception;
+use Data::Dumper;
+use Data::Schema;
 
 use lib './t';
 require 'testlib.pm';
@@ -16,6 +14,7 @@ package MyType1;
 use Moose;
 extends 'Data::Schema::Type::Base';
 sub handle_attr_bar { 1 };
+sub emitpl_attr_bar { '' };
 
 package main;
 
@@ -36,16 +35,16 @@ $res = ds_validate(1, 'int');
 ok($res && $res->{success}, 'procedural interface');
 
 # first form
-$res = $ds->validate(1);
-ok(!$res->{success} && $res->{errors}[0] =~ /schema is missing/, 'missing schema');
-
-$res = $ds->validate(1, 'foo');
-ok(!$res->{success} && $res->{errors}[0] =~ /unknown type/, 'unknown type');
+dies_ok(sub { $res = $ds->validate(1) }, 'schema error: missing');
+dies_ok(sub { $ds->validate(1, 'foo') }, 'schema error: unknown type [1f]');
 
 # second form
 invalid(2, [int=>{divisible_by=>2}=>{divisible_by=>3}], 'multiple attrhash 1.1');
 invalid(3, [int=>{divisible_by=>2}=>{divisible_by=>3}], 'multiple attrhash 1.2');
 valid  (6, [int=>{divisible_by=>2}=>{divisible_by=>3}], 'multiple attrhash 1.3');
+dies_ok(sub { $ds->validate(1, ['foo']) }, 'schema error: unknown type (2f)');
+dies_ok(sub { $ds->validate(1, [int=>{foo=>1}]) }, 'schema error: unknown attr (2f)');
+dies_ok(sub { $ds->validate(1, [int=>{deps=>1}]) }, 'schema error: incorrect attr arg (2f)'); # XXX should test on every known attr
 
 # third form
 valid  ( 1, {type=>'int'}, 'third form 0.1');
@@ -57,7 +56,7 @@ invalid( 1, {type=>'int', attr_hashes=>[{min=>10}]}, 'third form 0.6');
 valid  (15, {type=>'int', attr_hashes=>[{min=>10}], attrs=>{divisible_by=>3}}, 'third form 0.7');
 invalid(10, {type=>'int', attr_hashes=>[{min=>10}], attrs=>{divisible_by=>3}}, 'third form 0.8');
 # NOTE: def key of third form is tested in 06-schema.t
-invalid( 1, {type=>'int', foo=>1}, 'third form unknown key');
+dies_ok(sub { $ds->validate( 1, {type=>'int', foo=>1}) }, 'third form unknown key');
 
 # common attribute: required
 valid  (1,     [int=>{required=>1}], 'required 1');
@@ -86,8 +85,8 @@ valid  (undef, [int=>{set=>0}], 'set 7');
 valid  (undef, [int=>{set=>undef}], 'set 8');
 
 # attribute conflict: required/forbidden & set
-invalid(0,     [int=>{required=>1, forbidden=>1}], 'conflict required+forbidden 1a');
-invalid(undef, [int=>{required=>1, forbidden=>1}], 'conflict required+forbidden 1b');
+dies_ok(sub {$ds->validate(0,     [int=>{required=>1, forbidden=>1}])}, 'conflict required+forbidden 1a');
+dies_ok(sub {$ds->validate(undef, [int=>{required=>1, forbidden=>1}])}, 'conflict required+forbidden 1b');
 valid  (0,     [int=>{required=>1, forbidden=>0}], 'conflict required+forbidden 2a');
 invalid(undef, [int=>{required=>1, forbidden=>0}], 'conflict required+forbidden 2b');
 invalid(0,     [int=>{required=>0, forbidden=>1}], 'conflict required+forbidden 3a');
@@ -95,8 +94,8 @@ valid  (undef, [int=>{required=>0, forbidden=>1}], 'conflict required+forbidden 
 valid  (0,     [int=>{required=>0, forbidden=>0}], 'conflict required+forbidden 4a');
 valid  (undef, [int=>{required=>0, forbidden=>0}], 'conflict required+forbidden 4b');
 # conflict alias set=1 for required
-invalid(0,     [int=>{set=>1, forbidden=>1}], 'conflict set+forbidden 1a');
-invalid(undef, [int=>{set=>1, forbidden=>1}], 'conflict set+forbidden 1b');
+dies_ok(sub{$ds->validate(0,     [int=>{set=>1, forbidden=>1}])}, 'conflict set+forbidden 1a');
+dies_ok(sub{$ds->validate(undef, [int=>{set=>1, forbidden=>1}])}, 'conflict set+forbidden 1b');
 valid  (0,     [int=>{set=>1, forbidden=>0}], 'conflict set+forbidden 2a');
 invalid(undef, [int=>{set=>1, forbidden=>0}], 'conflict set+forbidden 2b');
 invalid(0,     [int=>{set=>undef, forbidden=>1}], 'conflict set+forbidden 3a');
@@ -104,8 +103,8 @@ valid  (undef, [int=>{set=>undef, forbidden=>1}], 'conflict set+forbidden 3b');
 valid  (0,     [int=>{set=>undef, forbidden=>0}], 'conflict set+forbidden 4a');
 valid  (undef, [int=>{set=>undef, forbidden=>0}], 'conflict set+forbidden 4b');
 # conflict alias set=0 for forbidden
-invalid(0,     [int=>{required=>1, set=>0}], 'conflict required+set 1a');
-invalid(undef, [int=>{required=>1, set=>0}], 'conflict required+set 1b');
+dies_ok(sub{$ds->validate(0,     [int=>{required=>1, set=>0}])}, 'conflict required+set 1a');
+dies_ok(sub{$ds->validate(undef, [int=>{required=>1, set=>0}])}, 'conflict required+set 1b');
 valid  (0,     [int=>{required=>1, set=>undef}], 'conflict required+set 2a');
 invalid(undef, [int=>{required=>1, set=>undef}], 'conflict required+set 2b');
 invalid(0,     [int=>{required=>0, set=>0}], 'conflict required+set 3a');
@@ -116,13 +115,11 @@ valid  (undef, [int=>{required=>0, set=>undef}], 'conflict required+set 4b');
 # register_type
 $ds->register_type(foo => MyType1->new);
 $res = $ds->validate(1, 'foo');
-ok($res->{success}, 'register_type');
+ok($res->{success}, 'user type: register_type');
 
 $res = $ds->validate(1, [foo => {bar=>1}]);
-ok($res->{success}, 'new attribute');
-
-$res = $ds->validate(1, [foo => {baz=>1}]);
-ok(!$res->{success} && $res->{errors}[0] =~ /unknown attribute/, 'unknown attribute');
+ok($res->{success}, 'user type: new attribute');
+dies_ok(sub { $ds->validate(1, [foo=>{baz=>1}]) }, 'user type: unknown attribute');
 
 # attr_hashes merge
 valid  (2,  [int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.1');
@@ -145,10 +142,30 @@ valid  (6,  [int=>{'^divisible_by'=>2}=>{"divisible_by"=>3}], 'multiple attrhash
 valid  (2,  [int=>{'^divisible_by'=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 5.4 (keep left attr)');
 invalid(3,  [int=>{'^divisible_by'=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 5.5 (keep left attr)');
 
+my $sch = [
+    "hash",
+    {  keys =>{a=>"int"  , b=>"int" ,   c =>"int",                   , "^f"=>"int"  ,   g=>"int"   }},
+    {"*keys"=>{a=>"array",              c =>"int", d=>"int"          ,  "f"=>"array", "^g"=>"array"}},
+    {"*keys"=>{            b=>"hash", "!c"=>"int",         , e=>"int",  "f"=>"hash" ,  "g"=>"hash" }},
+];
+invalid({a=>1 }, $sch, 'merge 3 attrhash: a replaced by 2: invalid)');
+valid  ({a=>[]}, $sch, 'merge 3 attrhash: a replaced by 2: valid)');
+invalid({b=>1 }, $sch, 'merge 3 attrhash: b replaced by 3: invalid)');
+valid  ({b=>{}}, $sch, 'merge 3 attrhash: b replaced by 3: valid)');
+invalid({c=>1 }, $sch, 'merge 3 attrhash: c removed by 3)');
+valid  ({d=>1 }, $sch, 'merge 3 attrhash: d new from 2)');
+valid  ({e=>1 }, $sch, 'merge 3 attrhash: e new from 3)');
+invalid({f=>[]}, $sch, 'merge 3 attrhash: f keep from 1: invalid 1)');
+invalid({f=>{}}, $sch, 'merge 3 attrhash: f keep from 1: invalid 2)');
+valid  ({f=>1 }, $sch, 'merge 3 attrhash: f keep from 1: valid)');
+valid  ({g=>[]}, $sch, 'merge 3 attrhash: g keep from 2: valid)');
+invalid({g=>{}}, $sch, 'merge 3 attrhash: g keep from 2: invalid 1)');
+invalid({g=>1 }, $sch, 'merge 3 attrhash: g keep from 2: invalid 2)');
+
 $ds = new Data::Schema;
 invalid(15, {def=>{even=>[int=>{divisible_by=>2}]}, type=>'even', attr_hashes=>[{min=>10}], attrs=>{divisible_by=>3}}, 'third form 1.1', $ds);
 valid  (12, {def=>{even=>[int=>{divisible_by=>2}]}, type=>'even', attr_hashes=>[{min=>10}], attrs=>{divisible_by=>3}}, 'third form 1.2', $ds);
-invalid( 2, 'even', 'third form 1.3', $ds); # 'even' is still unknown after previous validation
+dies_ok(sub { $ds->validate(2, 'even') }, 'third form 1.3: "even" is still unknown after previous validation');
 
 valid  ( 2, {def=>{even=>[int=>{divisible_by=>2}], positive_even=>[even=>{min=>0}]},
              type=>'positive_even'}, 'third form 2.1', $ds);
@@ -156,10 +173,10 @@ invalid( 1, {def=>{even=>[int=>{divisible_by=>2}], positive_even=>[even=>{min=>0
              type=>'positive_even'}, 'third form 2.2', $ds);
 invalid(-2, {def=>{even=>[int=>{divisible_by=>2}], positive_even=>[even=>{min=>0}]},
              type=>'positive_even'}, 'third form 2.3', $ds);
-invalid( 2, 'even', 'third form 2.4', $ds); # 'even' is still unknown after previous validation
-invalid( 2, 'even', 'third form 2.5', $ds); # 'positive_even' is still unknown after previous validation
+dies_ok(sub {$ds->validate(2, 'even')}, 'third form 2.4: "even" is still unknown after previous validation');
+dies_ok(sub {$ds->validate(2, 'even')}, 'third form 2.5: "positive_even" is still unknown after previous validation');
 
-my $sch = {def=>{
+$sch = {def=>{
                  even=>[int=>{divisible_by=>2}],
                  positive_even=>[even=>{min=>0}],
                  pe=>"positive_even",
@@ -170,23 +187,30 @@ invalid(2    , $sch, 'third form 3.1', $ds);
 valid  ([]   , $sch, 'third form 3.2', $ds);
 valid  ([2]  , $sch, 'third form 3.3', $ds);
 invalid([-2] , $sch, 'third form 3.4', $ds);
-invalid( 2, 'even', 'third form 2.5', $ds); # 'even' is still unknown after previous validation
-invalid( 2, 'positive_even', 'third form 2.6', $ds);
-invalid( 2, 'pe', 'third form 2.7', $ds);
-invalid( [], 'array_of_pe', 'third form 2.8', $ds);
+dies_ok(sub{$ds->validate( 2, 'even')}, 'third form 2.5: "even" is still unknown after previous validation');
+dies_ok(sub{$ds->validate( 2, 'positive_even')}, 'third form 2.6: "even" is still unknown after previous validation');
+dies_ok(sub{$ds->validate( 2, 'pe')}, 'third form 2.7: "pe" is still unknown after previous validation');
+dies_ok(sub{$ds->validate([], 'array_of_pe')}, 'third form 2.8: "array_of_pe" is still unknown after previous validation');
 
 # attr suffix: errmsg
-$res = ds_validate(10, [int=>{"min"=>200, "min.errmsg"=>"don't be so cheap!"}]);
+$res = ds_validate(10, [int=>{"min"=>200, "min:errmsg"=>"don't be so cheap!"}]);
 ok(!$res->{success} && $res->{errors}[0] =~ /cheap/, 'attribute suffix: errmsg');
+# attrless suffix: errmsg
+my ($rnc, $rc) = test_validate(10, [int=>{"min"=>200, one_of=>[25, 50, 100, 250, 500], ":errmsg"=>"invalid donation amount"}]);
+is((scalar @{ $rnc->{errors} }), 1, 'attributeless suffix: errmsg 1');
+like($rnc->{errors}[0], '/invalid donation amount/', 'attributeless suffix: errmsg 2');
+is((scalar @{ $rc ->{errors} }), 1, 'attributeless suffix: errmsg (compiled) 1');
+like($rnc->{errors}[0], '/invalid donation amount/', 'attributeless suffix: errmsg 2 (compiled)');
+ 
 # config: gettext_function
 $ds = new Data::Schema;
 $ds->config->gettext_function(sub { "tong pedit atuh!" });
-$res = $ds->validate(10, [int=>{"min"=>200, "min.errmsg"=>"min.errmsg"}]);
+$res = $ds->validate(10, [int=>{"min"=>200, "min:errmsg"=>"min:errmsg"}]);
 ok(!$res->{success} && $res->{errors}[0] =~ /pedit/, 'config: gettext_function');
+diag("  INFO: currently this test generates warning from Storable, since we're trying to freeze coderef");
 
 # unknown attr suffix
-$res = ds_validate(1, [int=>{"max.foo"=>1}]);
-ok(!$res->{success} && $res->{errors}[0] =~ /suffix/, 'unknown attribute suffix');
+dies_ok(sub {ds_validate(1, [int=>{"max:foo"=>1}])}, 'unknown attribute suffix');
 
 # _pos_as_str escapes whitespaces
 is($ds->_pos_as_str(["a", "b ", " c", "  d "]), "a/b_/_c/_d_", "_pos_as_str and whitespace");
@@ -202,4 +226,35 @@ test_english([any=>{of=>["int", [array=>{all_elems=>"int"}]]}],
 test_english([all=>{of=>["int", "float"]}],
                      '(int) as well as (float)', 'english 6', $ds);
 
+# compile
+$ds = new Data::Schema;
+my ($sub, $subname) = $ds->compile([int => {min=>2, divisible_by=>2}]);
+is(scalar(@{ $sub->(undef) }), 0, "compile 1: valid data 1");
+is(scalar(@{ $sub->(2    ) }), 0, "compile 1: valid data 2");
+is(scalar(@{ $sub->(0    ) }), 1, "compile 1: invalid data 1");
+is(scalar(@{ $sub->(1    ) }), 2, "compile 1: invalid data 2");
+is(scalar(@{ $sub->([]   ) }), 1, "compile 1: invalid data 3");
+
+# note: we don't use 'foo' because it's already compiled above when doing register_type
+dies_ok(sub { $ds->compile("foo2") }, "compile 1: invalid schema: unknown type");
+dies_ok(sub { $ds->compile([int => {foo=>1}]) }, "compile 1: invalid schema: unknown attr");
+dies_ok(sub { $ds->compile([int => {deps=>1}]) }, "compile 1: invalid schema: incorrect attr arg");
+
+# emit_perl
+$ds = new Data::Schema;
+{
+    my $code1 = $ds->emit_perl("int");
+    my $code1b = $ds->emit_perl("int");
+    $ds->config->allow_extra_hash_keys(1);
+    my $code2 = $ds->emit_perl("int");
+    like($code1 , qr/^\s*sub /m, "emit_perl: valid 1");
+    like($code1b, qr/^\s*sub /m, "emit_perl: valid 1b");
+    like($code2 , qr/^\s*sub /m, "emit_perl: valid 2");
+    ok($code1 eq $code1b, "emit_perl: recompile if config changes a");
+    ok($code1 ne $code2 , "emit_perl: recompile if config changes b");
+    dies_ok(sub { my $code = $ds->emit_perl("foo") }, "emit_perl: invalid");
+}
+
 # TODO: register_plugin, unknown plugin
+
+done_testing();

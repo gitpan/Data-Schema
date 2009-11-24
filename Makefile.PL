@@ -1,26 +1,31 @@
-use inc::Module::Install;
 
-name     'Data-Schema';
-all_from 'lib/Data/Schema.pm';
-author   'Steven Haryanto <steven@masterweb.net>';
-license  'perl';
+use strict;
+use warnings;
 
-build_requires 'Test::More';
+use ExtUtils::MakeMaker;
 
-test_requires 'FindBin';
-test_requires 'Test::Exception';
+WriteMakefile(
+  DISTNAME  => 'Data-Schema',
+  NAME      => 'Data::Schema',
+  AUTHOR    => "Steven\ Haryanto\ \<stevenharyanto\@gmail\.com\>",
+  ABSTRACT  => "Validate\ nested\ data\ structures\ with\ nested\ structure",
+  VERSION   => '0.12',
+  EXE_FILES => [ qw() ],
+  (eval { ExtUtils::MakeMaker->VERSION(6.31) } ? (LICENSE => 'perl') : ()),
+  PREREQ_PM    => {
+    "Scalar::Util" => '0',
+    "Test::Exception" => '0',
+    "FindBin" => '0',
+    "Data::PrefixMerge" => '0.09',
+    "Data::Dumper" => '0',
+    "Storable" => '0',
+    "YAML::XS" => '0',
+    "Test::More" => '0',
+    "Digest::MD5" => '0',
+    "List::MoreUtils" => '0',
+    "Moose" => '0',
+    "File::Slurp" => '0',
+  },
+  test => {TESTS => 't/*.t'}
+);
 
-requires 'Moose';
-requires 'Data::Dumper';
-requires 'Storable';
-requires 'Scalar::Util';
-requires 'List::MoreUtils';
-requires 'Data::PrefixMerge' => '0.06';
-
-# for DSP::LoadSchema::YAMLFile
-requires 'YAML::XS';
-requires 'File::Slurp';
-
-auto_install;
-
-WriteAll;

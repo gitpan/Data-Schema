@@ -1,0 +1,24 @@
+---
+abstract: 'Validate nested data structures with nested structure'
+author:
+  - 'Steven Haryanto <stevenharyanto@gmail.com>'
+generated_by: 'Dist::Zilla version 1.093000'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: Data-Schema
+requires:
+  Data::Dumper: 0
+  Data::PrefixMerge: 0.09
+  Digest::MD5: 0
+  File::Slurp: 0
+  FindBin: 0
+  List::MoreUtils: 0
+  Moose: 0
+  Scalar::Util: 0
+  Storable: 0
+  Test::Exception: 0
+  Test::More: 0
+  YAML::XS: 0
+version: 0.12

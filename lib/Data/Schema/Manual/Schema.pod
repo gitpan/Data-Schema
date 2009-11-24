@@ -1,12 +1,25 @@
+# just to make PodWeaver happy at the moment
+package Data::Schema::Manual::Schema;
+
+
+__END__
+=pod
+
 =head1 NAME
 
-Data::Schema::Manual::Schema - Data::Schema schema reference
+Data::Schema::Manual::Schema
 
+=head1 VERSION
+
+version 0.12
 
 =head1 OVERVIEW
 
 This document is explains the syntax of Data::Schema schema.
 
+=head1 NAME
+
+Data::Schema::Manual::Schema - Data::Schema schema reference
 
 =head1 FORMS
 
@@ -116,7 +129,6 @@ Our schema in effect says that the data must be an even number greater or equal
 than 20. Since our schema is based on the B<even> schema, the attributes we can
 specify is that of the B<int> type, since B<even> is defined as an int.
 
-
 =head2 Third Form (HASH)
 
  {type=>TYPE OR SCHEMA,
@@ -156,7 +168,7 @@ Example:
       sdt                  => "single_dice_throw", # short notation
       dice_pair_throw      => [array => {len=>2, elems=>["sdt", "sdt"]}],
       dpt                  => "dice_pair_throw",   # short notation
-      throw                => [or => {alts => ["sdt", "dpt"]}],
+      throw                => [either => {of => ["sdt", "dpt"]}],
       throws               => [array => {of => "throw"}],
   },
   type => "throws"
@@ -176,7 +188,6 @@ Examples of invalid data:
  [1, [2, 3], 0]     # the third throw is invalid
  [1, [2,0,4], 4, 5] # the second throw (a dice pair throw) is invalid
 
-
 =head1 TYPE
 
 Data::Schema comes with several types out of the box, for example:
@@ -190,7 +201,6 @@ L<Data::Schema::Type::Hash>.
 
 You can write your own type handler. For more information on how to
 write a type handler, see L<Data::Schema::Manual::TypeHandler>.
-
 
 =head1 ATTRHASH
 
@@ -254,35 +264,39 @@ Given several attribute hashes in the schema like:
 
  [TYPE, AH1, AH2, AH3]
 
-all AH1, AH2, and AH3 will be evaluated in that order. However, if AH2
-keys contain prefixes, AH1 will be merged with AH2 first before
-evaluated. If AH3 contains merge prefixes too then AH1 will be merged
-with AH2 and then merged again with AH3 first before evaluating the
-first attribute hash, and so on. Illustration ("+" notation indicates
-the presence of merge prefix and "|" notation indicates merging).
-
- AH1, AH2, AH3
+all AH1, AH2, and AH3 will be evaluated in that order:
 
  eval(AH1)
  eval(AH2)
  eval(AH3)
 
- AH1, *AH2, AH3
- eval(AH1|AH2)
+However, if AH2 keys contain prefixes, AH1 will be merged with AH2
+first before evaluated. (Illustration: "*" notation indicates the
+presence of merge prefix and "|" notation indicates merging).
+
+ eval(AH1|*AH2)
  eval(AH3)
 
- AH1, AH2, *AH3
+If AH3 instead contains merge prefixes then AH1 will be evaluated, and
+then AH2 is merged first with AH3:
+
  eval(AH1)
- eval(AH2|AH3)
+ eval(AH2|*AH3)
 
- AH1, AH2, AH3
- eval(AH1|AH2|AH3)
+If AH2 as well as AH3 contains merge prefixes, then the three will be
+merged first before evaluating:
 
-Data::Schema uses Data::PrefixMerge to do merging. Data::PrefixMerge style
-of merging allows keys on the left side to replace but also add,
-subtract, remove keys from the left side. This allows schema
-definition to relax/subtract attribute requirements instead of only
-add attribute requirements.
+ eval(AH1|*AH2|*AH3)
+
+So in short, unless the right hand side is devoid of merge prefixes,
+merging will be done first from left to right.
+
+Data::Schema uses L<Data::PrefixMerge> to do the
+merging. Data::PrefixMerge style of merging allows keys on the left
+side to replace but also add, subtract, remove keys from the left
+side. This allows schema definition to add attributes (restrict types
+even more), or replace attributes (change type restriction) as well as
+delete attributes (relax type restriction).
 
 Examples:
 
@@ -304,7 +318,6 @@ Examples:
 
 Refer to L<Data::PrefixMerge> for details on merging syntax and behaviour.
 
-
 =head1 NAMING SCHEMAS FOR USE IN OTHER SCHEMAS
 
 Schemas can be defined for use in other schemas. Example:
@@ -325,17 +338,22 @@ The above schema defines six other schemas (subschemas?). These subschemas will
 not be available outside of this schema.
 
 Another way is by putting schemas in Perl hash or in YAML files and then loading
-them using DSP::LoadSchema::Hash or DSP::LoadSchema::YAMLFile.
-
+them using L<DSP::LoadSchema::Hash> or L<DSP::LoadSchema::YAMLFile>.
 
 =head1 AUTHOR
 
-Steven Haryanto, C<< <steven at masterweb.net> >>
-
-
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+=head1 AUTHOR
 
-This module is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

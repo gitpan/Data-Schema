@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 19;
+use Test::More tests => 20;
 
 BEGIN {
 	use_ok( 'Data::Schema' );
@@ -24,7 +24,8 @@ BEGIN {
         use_ok( 'Data::Schema::Type::Printable' );
 	use_ok( 'Data::Schema::Type::Comparable' );
 	use_ok( 'Data::Schema::Type::Sortable' );
-	use_ok( 'Data::Schema::Type::HasLength' );
+	use_ok( 'Data::Schema::Type::HasElement' );
+	use_ok( 'Data::Schema::Type::Scalar' );
 
 	#use_ok( 'Data::Schema::Plugin::LoadSchema::Base' );
 	use_ok( 'Data::Schema::Plugin::LoadSchema::Hash' );

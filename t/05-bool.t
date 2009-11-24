@@ -2,13 +2,12 @@
 
 use strict;
 use warnings;
-use Test::More tests => 20;
+use Test::More;
 
 use lib './t';
 require 'testlib.pm';
 
-use_ok('Data::Schema::Type::Bool');
-use_ok('Data::Schema');
+use Data::Schema;
 
 valid(1, 'bool', 'bool 1');
 valid("true", 'bool', 'bool 2');
@@ -33,3 +32,7 @@ valid('yes', [bool => {min=>'true'}], 'min 1');
 invalid('', [bool => {min=>'true'}], 'min 2');
 valid('', [bool => {max=>''}], 'max 1');
 invalid(1, [bool => {max=>''}], 'max 2');
+
+test_scalar_deps('str', 0, {is=>0}, {is=>1});
+
+done_testing();

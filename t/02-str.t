@@ -2,9 +2,9 @@
 
 use strict;
 use warnings;
-use Test::More tests => 143;
+use Test::More;
 
-BEGIN { use_ok('Data::Schema'); }
+use Data::Schema;
 
 use lib './t';
 require 'testlib.pm';
@@ -21,7 +21,7 @@ valid('', 'string', 'alias 1');
 invalid([], 'str', 'array');
 invalid({}, 'str', 'hash');
 
-test_len('str', 'a', 'ab', 'abc'); # 36
+test_len('str', 'a', 'ab', 'abc');
 
 # match
 for (qw(match matches)) {
@@ -34,9 +34,9 @@ for (qw(match matches)) {
 valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
 invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
 
-test_comparable('str', 'a', 'b', 'A', 'B'); # 26
+test_comparable('str', 'a', 'b', 'A', 'B');
 
-test_sortable('str', 'a', 'b', 'c'); # 27
+test_sortable('str', 'a', 'b', 'c');
 
 # cistr
 valid  ('a', [cistr => {is=>"a"}], "cistr:is 1");
@@ -48,4 +48,8 @@ valid  ('A', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 2");
 valid  ('a', [cistr => {one_of=>[qw/A/]}], "cistr:one_of 3");
 valid  ('A', [cistr => {one_of=>[qw/A/]}], "cistr:one_of 4");
 invalid('b', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 5");
-test_sortable('cistr', 'a', 'B', 'c'); # 27
+test_sortable('cistr', 'a', 'B', 'c');
+
+test_scalar_deps('str', 'abc', {minlen=>1}, {maxlen=>2});
+
+done_testing();

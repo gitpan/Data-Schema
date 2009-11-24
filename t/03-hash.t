@@ -2,9 +2,9 @@
 
 use strict;
 use warnings;
-use Test::More tests => 164;
+use Test::More;
 
-BEGIN { use_ok('Data::Schema'); }
+use Data::Schema;
 
 use lib './t';
 require 'testlib.pm';
@@ -24,40 +24,47 @@ test_len('hash', {a=>1}, {a=>1, b=>2}, {a=>1, b=>2, c=>3}); # 36
 
 test_comparable('hash', {a=>1}, {b=>1}, {c=>1}, {d=>1}); # 26
 
-# keys_match, values_match = 1x8 = 8
-for (qw(match)) {
-    valid({a=>1}, [hash => {"keys_$_"=>'^\w+$'}], "keys_$_ 1");
-    invalid({a=>1, 'b '=>2}, [hash => {"keys_$_"=>'^\w+$'}], "keys_$_ 2");
-    valid({'a '=>1}, [hash => {"keys_not_$_"=>'^\w+$'}], "keys_not_$_ 1");
-    invalid({'a '=>1, b=>2}, [hash => {"keys_not_$_"=>'^\w+$'}], "keys_not_$_ 2");
+for (qw(keys_match allowed_keys_regex)) {
+    valid({a=>1}, [hash => {$_=>'^\w+$'}], "$_ 1");
+    invalid({a=>1, 'b '=>2}, [hash => {$_=>'^\w+$'}], "$_ 2");
+}
 
-    valid({1=>'a'}, [hash => {"values_$_"=>'^\w+$'}], "values_$_ 1");
-    invalid({1=>'a', 2=>'b '}, [hash => {"values_$_"=>'^\w+$'}], "values_$_ 2");
-    valid({1=>'a '}, [hash => {"values_not_$_"=>'^\w+$'}], "values_not_$_ 1");
-    invalid({1=>'a ', 2=>'b'}, [hash => {"values_not_$_"=>'^\w+$'}], "values_not_$_ 2");
+for (qw(keys_not_match forbidden_keys_regex)) {
+    valid({'a '=>1}, [hash => {$_=>'^\w+$'}], "$_ 1");
+    invalid({'a '=>1, b=>2}, [hash => {$_=>'^\w+$'}], "$_ 2");
+}
+
+for (qw(values_match allowed_values_regex)) {
+    valid({1=>'a'}, [hash => {$_=>'^\w+$'}], "$_ 1");
+    invalid({1=>'a', 2=>'b '}, [hash => {$_=>'^\w+$'}], "$_ 2");
+}
+
+for (qw(values_not_match forbidden_values_regex)) {
+    valid({1=>'a '}, [hash => {$_=>'^\w+$'}], "$_ 1");
+    invalid({1=>'a ', 2=>'b'}, [hash => {$_=>'^\w+$'}], "$_ 2");
 }
 
 # required_keys
 valid({a=>1, b=>1, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 1");
 valid({a=>1, b=>1, c=>undef}, [hash => {required_keys=>[qw/a b/]}], "required_keys 2");
-invalid({a=>1, b=>undef, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 3");
-invalid({a=>undef, b=>1, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 4");
+valid({a=>1, b=>undef, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 3");
+valid({a=>undef, b=>1, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 4");
 invalid({b=>1, c=>1}, [hash => {required_keys=>[qw/a b/]}], "required_keys 5");
 invalid({c=>undef}, [hash => {required_keys=>[qw/a b/]}], "required_keys 6");
 valid({}, [hash => {required_keys=>[]}], "required_keys 7");
 
-# required_keys_regex = 1x7 = 7
 for (qw(required_keys_regex)) {
-    valid({a=>1, b=>1, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 1");
-    valid({a=>1, b=>1, c=>undef}, [hash => {$_=>'^[ab]$'}], "$_ 2");
-    invalid({a=>1, b=>undef, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 3");
-    invalid({a=>undef, b=>1, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 4");
-    valid({b=>1, c=>1}, [hash => {$_=>'^[ab]$'}], "$_ 5");
-    valid({c=>undef}, [hash => {$_=>'^[ab]$'}], "$_ 6");
-    valid({}, [hash => {$_=>'.*'}], "$_ 7");
+    valid  ({a=>1    , b=>1    }, [hash => {$_=>'^[a]$'}], "$_ 1");
+    valid  ({a=>1    , b=>undef}, [hash => {$_=>'^[a]$'}], "$_ 2");
+    valid  ({a=>1    ,         }, [hash => {$_=>'^[a]$'}], "$_ 3");
+    valid  ({a=>undef, b=>1    }, [hash => {$_=>'^[a]$'}], "$_ 4");
+    valid  ({a=>undef, b=>undef}, [hash => {$_=>'^[a]$'}], "$_ 5");
+    valid  ({a=>undef,         }, [hash => {$_=>'^[a]$'}], "$_ 6");
+    invalid({          b=>1    }, [hash => {$_=>'^[a]$'}], "$_ 7");
+    invalid({          b=>undef}, [hash => {$_=>'^[a]$'}], "$_ 8");
+    invalid({                  }, [hash => {$_=>'^[a]$'}], "$_ 9");
 }
 
-# keys_of 1x3 = 3
 for (qw(keys_of)) {
     my $sch = [hash=>{$_=>'int'}];
     valid({}, $sch, "$_ 1");
@@ -65,24 +72,13 @@ for (qw(keys_of)) {
     invalid({a=>1}, $sch, "$_ 3");
 }
 
-# values_of 1x3 = 3
-for (qw(values_of)) {
+for (qw(of values_of)) {
     my $sch = [hash=>{$_=>'int'}];
     valid({}, $sch, "$_ 1");
     valid({a=>1, b=>0, c=>-1}, $sch, "$_ 2");
     invalid({a=>1, b=>"a"}, $sch, "$_ 3");
 }
 
-# of 1x4 = 4
-for (qw(of)) {
-    my $sch = [hash=>{$_=>[int=>'int']}];
-    valid({}, $sch, "$_ 1");
-    valid({1=>1, 0=>0, -1=>-1}, $sch, "$_ 2");
-    invalid({a=>1}, $sch, "$_ 3");
-    invalid({1=>'a'}, $sch, "$_ 4");
-}
-
-# some_of 1x15=15
 for (qw(some_of)) {
     # at least one int=>int, exactly 2 str=>str, at most one int=>array. note: str is also int
     my $sch = [hash=>{$_=>[ [int=>int=>1,-1], [str=>str=>2,2], [int=>array=>0,1] ]}];
@@ -108,7 +104,6 @@ for (qw(some_of)) {
     invalid({}, $sch, "$_ 15");
 }
 
-# keys 1x16 = 16
 for (qw(keys)) {
     my $dse = new Data::Schema(config=>{allow_extra_hash_keys=>1});
 
@@ -133,7 +128,6 @@ for (qw(keys)) {
     valid({h2=>{hi2=>2}}, $sch, "$_ 2.6");
 }
 
-# keys_one_of 2x3 = 6
 for (qw(keys_one_of allowed_keys)) {
     my $sch = [hash=>{$_=>["a", "b"]}];
     valid({}, $sch, "$_ 1");
@@ -141,15 +135,13 @@ for (qw(keys_one_of allowed_keys)) {
     invalid({a=>1, b=>1, c=>1}, $sch, "$_ 3");
 }
 
-# values_one_of 2x3 = 6
 for (qw(values_one_of allowed_values)) {
-    my $sch = [hash=>{$_=>[1, 2]}];
+    my $sch = [hash=>{$_=>[1, 2, [3]]}];
     valid({}, $sch, "$_ 1");
-    valid({a=>1, b=>2}, $sch, "$_ 2");
+    valid({a=>1, b=>2, c=>[3]}, $sch, "$_ 2");
     invalid({a=>3}, $sch, "$_ 3");
 }
 
-# keys_regex 1x4 = 4
 for (qw(keys_regex)) {
     my $sch = [hash=>{$_=>{'^i\d*$'=>'int'}}];
     valid({}, $sch, "$_ 1");
@@ -158,7 +150,6 @@ for (qw(keys_regex)) {
     valid({j=>1}, $sch, "$_ 4");
 }
 
-# deps
 for (qw(deps)) {
     my $sch;
     # second totally dependant on first
@@ -187,3 +178,18 @@ for (qw(deps)) {
     valid  ({a=>"a",b=>1},       $sch, "$_ 2.7");
     valid  ({a=>"a",b=>"a"},     $sch, "$_ 2.8");
 }
+
+# allow_extra_keys
+valid  ({a=>1}       , [hash=>{keys=>{a=>"int"}}], "allow_extra_keys 1a");
+invalid({a=>1,b=>2}  , [hash=>{keys=>{a=>"int"}}], "allow_extra_keys 1b");
+valid  ({a=>1}       , [hash=>{keys=>{a=>"int"}, allow_extra_keys=>0}], "allow_extra_keys 2a");
+invalid({a=>1,b=>2}  , [hash=>{keys=>{a=>"int"}, allow_extra_keys=>0}], "allow_extra_keys 2b");
+valid  ({a=>1}       , [hash=>{keys=>{a=>"int"}, allow_extra_keys=>1}], "allow_extra_keys 3a");
+valid  ({a=>1,b=>2}  , [hash=>{keys=>{a=>"int"}, allow_extra_keys=>1}], "allow_extra_keys 3b");
+invalid({a=>"a",b=>2}, [hash=>{keys=>{a=>"int"}, allow_extra_keys=>1}], "allow_extra_keys 3c");
+# overrides validator config setting
+my $dse = Data::Schema->new(config=>{allow_extra_hash_keys=>1});
+valid  ({a=>1,b=>2}  , [hash=>{keys=>{a=>"int"}}], "allow_extra_keys 4a", $dse);
+invalid({a=>1,b=>2}  , [hash=>{keys=>{a=>"int"}, allow_extra_keys=>0}], "allow_extra_keys 4b");
+
+done_testing();

@@ -1,47 +1,24 @@
 package Data::Schema::Type::Hash;
+our $VERSION = '0.12';
 
-=head1 NAME
 
-Data::Schema::Type::Hash - Type handler for hash ('hash')
+# ABSTRACT: Type handler for hash ('hash')
 
-=head1 SYNOPSIS
-
- use Data::Schema;
-
-=head1 DESCRIPTION
-
-This is the type handler for type 'hash'.
-
-Example schema (in YAML syntax):
-
- - hash
- - required_keys: [name, age]
-   allowed_keys: [name, age, note]
-   keys:
-     name: str
-     age: [int, {min: 0}]
-
-Example valid data:
-
- {name: Lisa, age: 14, note: "Bart's sister"}
-
-Example invalid data:
-
- []                             # not a hash
- {name: Lisa}                   # doesn't have the required key: age
- {name: Lisa, age: -1}          # age must be positive integer
- {name: Lisa, age: 14, sex: F}  # sex is not in list of allowed keys
-
-=cut
 
 use Moose;
 extends 'Data::Schema::Type::Base';
 with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasElement';
 use Storable qw/freeze/;
 
+# see note in Array.pm on why we use. basically for speed.
 sub _equal {
     my ($self, $a, $b) = @_;
-    (freeze($a) cmp freeze($b)) == 0;
+    ((ref($a) ? freeze($a) : $a) eq (ref($b) ? freeze($b) : $b));
+}
+
+sub _emitpl_equal {
+    my ($self, $a, $b) = @_;
+    "((ref($a) ? Storable::freeze($a) : $a) eq (ref($b) ? Storable::freeze($b) : $b))";
 }
 
 sub _length {
@@ -49,9 +26,19 @@ sub _length {
     scalar keys %$data;
 }
 
+sub _emitpl_length {
+    my ($self, $data) = @_;
+    '(scalar keys %'.$data.')';
+}
+
 sub _element {
     my ($self, $data, $idx) = @_;
     $data->{$idx};
+}
+
+sub _emitpl_element {
+    my ($self, $data, $idx, $lit) = @_;
+    '('.$data."->{".($lit ? $idx : $self->_dump($idx))."})";
 }
 
 sub _indexes {
@@ -59,29 +46,37 @@ sub _indexes {
     keys %$data;
 }
 
+sub _emitpl_indexes {
+    my ($self, $data) = @_;
+    '(keys %'.$data.')';
+}
+
 sub handle_pre_check_attrs {
     my ($self, $data) = @_;
     if (ref($data) ne 'HASH') {
-        $self->validator->log_error("must be a hash");
+        $self->validator->data_error("must be a hash");
         return;
     }
     1;
 }
 
-=head1 TYPE ATTRIBUTES
+sub emitpl_pre_check_attrs {
+    my ($self) = @_;
+    my $perl = '';
 
-Hashes are Comparable and HasLength, so you might want to consult the docs of
-those roles to see what type attributes are available.
+    $perl .= $self->validator->emitpl_require("Storable");
+    $perl .= 'if (ref($data) ne "HASH") { '.$self->validator->emitpl_data_error("must be a hash").'; pop @$schemapos; last L1 }'."\n";
+    $perl;
+}
 
-Aside from those, hash also has these type attributes:
+my %early_attrs = map {$_=>1} qw(allow_extra_keys);
 
-=cut
+sub sort_attr_hash_keys {
+    my ($self, $attrhash) = @_;
+    sort {($early_attrs{$a} ? 0:1) <=> ($early_attrs{$b} ? 0:1)} keys %$attrhash;
+}
 
-=head2 keys_match => REGEX
 
-Require that all hash keys must match a regular expression.
-
-=cut
 
 sub handle_attr_keys_match {
     my ($self, $data, $arg) = @_;
@@ -89,16 +84,21 @@ sub handle_attr_keys_match {
                              sub {
                                 (!ref($_[0]) && $_[0] =~ qr/$_[2]/) ?
                                 '' :
-                                "$_[0] must match regex $_[2]"
+                                "key must match regex $_[2]"
                              });
 }
 
-=head2 keys_not_match => REGEX
+sub emitpl_attr_keys_match {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (!ref($k) && $k =~ qr/$arg/) { $err = "key must match regex $arg" }'
+    );
+}
 
-This is the opposite of B<keys_match>, forbidding all hash keys from matching a
-regular expression.
+# aliases
+sub handle_attr_allowed_keys_regex { handle_attr_keys_match(@_) }
+sub emitpl_attr_allowed_keys_regex { emitpl_attr_keys_match(@_) }
 
-=cut
 
 sub handle_attr_keys_not_match {
     my ($self, $data, $arg) = @_;
@@ -106,30 +106,27 @@ sub handle_attr_keys_not_match {
                              sub {
                                 (!ref($_[0]) && $_[0] !~ qr/$_[2]/) ?
                                 '' :
-                                "$_[0] must not match regex $_[2]"
+                                "key must not match regex $_[2]"
                              });
 }
 
-=head2 keys_one_of => [VALUE, ...]
+sub emitpl_attr_keys_not_match {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (!ref($k) && $k !~ qr/$arg/) { $err = "key must not match regex $arg" }'
+    );
+}
 
-Specify that all hash keys must belong to a list of specified values.
+# aliases
+sub handle_attr_forbidden_keys_regex { handle_attr_keys_not_match(@_) }
+sub emitpl_attr_forbidden_keys_regex { emitpl_attr_keys_not_match(@_) }
 
-Synonyms: allowed_keys
-
-For example (in YAML):
-
- [hash, {allowed_keys: [name, age, address]}]
-
-This specifies that only keys 'name', 'age', 'address' are allowed (but none are
-required).
-
-=cut
 
 sub handle_attr_keys_one_of {
     my ($self, $data, $arg) = @_;
     $self->_for_each_element($data, $arg,
                              sub {
-                                # XXX early exit
+                                # XXX early exit from grep
                                 (grep {$_[0] eq $_} @$arg) ?
                                 '' :
                                 (@$arg ==1 ?
@@ -140,45 +137,53 @@ sub handle_attr_keys_one_of {
                              });
 }
 
+sub emitpl_attr_keys_one_of {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (grep {$k eq $_} @$arg) { # XXX early exit from grep
+    if (@$arg ==1) { $err = "key must be $arg->[0]" }
+    elsif (@$arg < 10) { $err = "key must be one of @$arg" }
+    else { $err = "key does not belong to list of valid keys" }
+}'
+    );
+}
+
 # aliases
 sub handle_attr_allowed_keys { handle_attr_keys_one_of(@_) }
+sub emitpl_attr_allowed_keys { emitpl_attr_keys_one_of(@_) }
 
-=head2 values_one_of => [VALUE, ...]
-
-Specify that all hash values must belong to a list of specified values.
-
-Synonyms: allowed_values
-
-For example (in YAML):
-
- [hash, {allowed_values: [1, 2, 3, 4, 5]}]
-
-=cut
 
 sub handle_attr_values_one_of {
     my ($self, $data, $arg) = @_;
     $self->_for_each_element($data, $arg,
                              sub {
                                 # XXX early exit
-                                (grep {ref($_[1]) ? ($self->cmp($_[1], $_) == 0) : ($_[1] eq $_)} @$arg) ?
+                                (grep {defined($_[1]) && (ref($_[1]) ? $self->_equal($_[1], $_) : ($_[1] eq $_))} @$arg) ?
                                 '' :
                                 # XXX complex value must be dumped
                                 (@$arg ==1 ?
-                                 "value must be $arg->[0]" :
+                                 "value must be ".$self->_dump($arg->[0]) :
                                  @$arg < 10 ?
-                                 "value must be one of @$arg" :
+                                 "value must be one of ".$self->_dump($arg) :
                                  "values does not belong to list of valid values")
                              });
 }
 
+sub emitpl_attr_values_one_of {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (grep {defined($v) && (ref($v) ? '.$self->_emitpl_equal('$v', '$_', 1).' : ($v eq $_))} @$arg) { # XXX early exit from grep
+    if (@$arg ==1) { $err = "value must be ".'.$self->_emitpl_dump('$arg->[0]', 1).' }
+    elsif (@$arg < 10) { $err = "key must be one of ".'.$self->_emitpl_dump('$arg', 1).' }
+    else { $err = "key does not belong to list of valid keys" }
+}'
+    );
+}
+
 # aliases
 sub handle_attr_allowed_values { handle_attr_values_one_of(@_) }
+sub emitpl_attr_allowed_values { emitpl_attr_values_one_of(@_) }
 
-=head2 required_keys => [KEY1, KEY2. ...]
-
-Require that certain keys exist in the hash.
-
-=cut
 
 sub handle_attr_required_keys {
     my ($self, $data, $arg) = @_;
@@ -186,93 +191,138 @@ sub handle_attr_required_keys {
 
     foreach my $k (keys %$data) {
         if (grep { $k eq $_ } @$arg) {
-            $checked_keys{$k}++ if defined($data->{$k});
+            $checked_keys{$k}++ if exists($data->{$k});
         }
     }
     my @missing_keys = grep {!$checked_keys{$_}} keys %checked_keys;
     if (@missing_keys) {
-        $self->validator->log_error("missing keys: ".join(", ", @missing_keys));
+        $self->validator->data_error("missing keys: ".join(", ", @missing_keys));
         return 0;
     }
     1;
 }
 
-=head2 required_keys_regex => REGEX
+sub emitpl_attr_required_keys {
+    my ($self, $arg) = @_;
+    my $perl = '';
 
-Require that keys matching a regular expression exist in the hash
+    $perl .= $self->validator->emitpl_my('%checked_keys', '@arg', '@missing_keys');
+    $perl .= '@arg = ('.join(", ", map { $self->_perl($_) } @$arg).");\n";
+    $perl .= '%checked_keys = map {$_=>0} @arg'.";\n";
+    $perl .= 'foreach my $k (keys %$data) {'."\n";
+    $perl .= '    if (grep { $k eq $_ } @arg) {'."\n";
+    $perl .= '        $checked_keys{$k}++ if exists($data->{$k});'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= '@missing_keys = grep {!$checked_keys{$_}} keys %checked_keys;'."\n";
+    $perl .= 'if (@missing_keys) { '.$self->validator->emitpl_data_error('"missing keys: ".join(", ", @missing_keys)', 1)." }\n";
+    $perl;
+}
 
-=cut
 
 sub handle_attr_required_keys_regex {
     my ($self, $data, $arg) = @_;
-    my @missing_keys;
+    my $found;
 
     foreach my $k (keys %$data) {
-        if ($k =~ qr/$arg/) {
-            push @missing_keys, $k unless defined($data->{$k});
-        }
+        if ($k =~ qr/$arg/) { $found++; last }
     }
-    if (@missing_keys) {
-        $self->validator->log_error("missing keys: ".join(", ", @missing_keys));
+    if (!$found) {
+        $self->validator->data_error("no keys matching $arg found");
     }
     1;
 }
 
-=head2 keys => {KEY=>SCHEMA1, KEY2=>SCHEMA2, ...}
+sub emitpl_attr_required_keys_regex {
+    my ($self, $arg) = @_;
+    my $perl = '';
 
-Specify schema for hash keys (hash values, actually).
+    $perl .= $self->validator->emitpl_my('$found', '$arg');
+    $perl .= '$arg = '.$self->_perl($arg).";\n";
+    $perl .= 'foreach my $k (keys %$data) {'."\n";
+    $perl .= '    if ($k =~ qr/$arg/) { $found++; last }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'if (!$found) { '.$self->validator->emitpl_data_error('"no keys matching $arg found"', 1)." }\n";
+    $perl;
+}
 
-For example (in YAML):
-
- [hash, {keys: { name: str, age: [int, {min: 0}] } }]
-
-This specifies that the value for key 'name' must be a string, and the value for
-key 'age' must be a positive integer.
-
-=cut
 
 sub handle_attr_keys {
     my ($self, $data, $arg) = @_;
+    my $ds = $self->validator;
     my $has_err = 0;
 
     if (ref($arg) ne 'HASH') {
-        $self->validator->log_error("schema error: `keys' attribute must be hash");
+        $ds->schema_error("`keys' attribute must be hash");
         return;
     }
 
-    my $allow_extra = $self->validator->config->allow_extra_hash_keys;
+    my $allow_extra0 = $ds->stash->{allow_extra_hash_keys};
+    my $allow_extra =  defined($allow_extra0) ? $allow_extra0 :
+        $ds->config->allow_extra_hash_keys;
 
-    push @{ $self->validator->data_pos }, '';
+    push @{ $ds->data_pos }, '';
     foreach my $k (keys %$data) {
         if (!exists $arg->{$k}) {
             next if $allow_extra;
-            $self->validator->log_error("key `$k' not allowed");
+            $ds->data_error("key `$k' not allowed");
             $has_err++;
         } else {
-            $self->validator->data_pos->[-1] = $k;
-            push @{ $self->validator->schema_pos }, $k;
-            if (!$self->validator->_validate($data->{$k}, $arg->{$k})) {
+            $ds->data_pos->[-1] = $k;
+            push @{ $ds->schema_pos }, $k;
+            if (!$ds->_validate($data->{$k}, $arg->{$k})) {
                 $has_err++;
             }
-            pop @{ $self->validator->schema_pos };
+            pop @{ $ds->schema_pos };
         }
-        last if $self->validator->too_many_errors;
+        last if $ds->too_many_errors;
     }
-    pop @{ $self->validator->data_pos };
+    pop @{ $ds->data_pos };
     !$has_err;
 }
 
-=head2 keys_of => SCHEMA
+sub emitpl_attr_keys {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
+    if (ref($arg) ne 'HASH') { $ds->schema_error("`keys' attribute must be hash"); return }
 
-Specify a schema for all hash keys.
+    $perl .= $ds->emitpl_my('$allow_extra_keys');
+    $perl .= '$allow_extra_keys = 1; # from DS config'."\n" if $ds->config->allow_extra_hash_keys;
 
-For example (in YAML):
+    my %schemas;
+    for my $k (keys %$arg) {
+	my ($code, $csubname) = $ds->emitpls_sub($arg->{$k});
+	$perl .= $code;
+	$schemas{$k} = $csubname;
+    }
 
- [hash, {keys_of: int}]
+    $perl .= $ds->emitpl_my('%schemas');
+    $perl .= '%schemas = ('.join(", ", map { $self->_perl($_) . ' => \&' . $schemas{$_} } keys %schemas).");\n";
+    $perl .= 'push @$datapos, "";'."\n";
+    $perl .= 'push @$schemapos, "";'."\n";
+    $perl .= 'foreach my $k (keys %$data) {'."\n";
+    $perl .= '    if (!exists $schemas{$k}) {'."\n";
+    $perl .= '        if ($allow_extra_keys) {'."\n";
+    $perl .= '            next;'."\n";
+    $perl .= '        } else {'."\n";
+    $perl .= '            pop @$schemapos;'."\n";
+    $perl .= '            '.$ds->emitpl_data_error('"key `$k` not allowed"', 1)."\n";
+    $perl .= '            push @$schemapos, "";'."\n";
+    $perl .= '        }'."\n";
+    $perl .= '    } else {'."\n";
+    $perl .= '        $datapos->[-1] = $k;'."\n";
+    $perl .= '        $schemapos->[-1] = $k;'."\n";
+    $perl .= '        my ($suberrors) = $schemas{$k}($data->{$k}, $datapos, $schemapos);'."\n";
+    $perl .= '        push @errors, @$suberrors;'."\n";
+    $perl .= '        if (@errors > '.$ds->config->max_errors.') { last L1 }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$datapos;'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
 
-This specifies that all hash keys must be ints.
-
-=cut
 
 sub handle_attr_keys_of {
     my ($self, $data, $arg) = @_;
@@ -290,72 +340,31 @@ sub handle_attr_keys_of {
     !$has_err;
 }
 
-=head2 values_of => SCHEMA
+sub emitpl_attr_keys_of {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
 
-Specify a schema for all hash values.
-
-Synonyms: all_elements, all_elems, all_elem
-
-For example (in YAML):
-
- [hash, {values_of: int}]
-
-This specifies that all hash values must be ints.
-
-=cut
-
-sub handle_attr_values_of { handle_attr_all_elements(@_) }
-
-=head2 of => [SCHEMA_FOR_KEYS, SCHEMA_FOR_VALUES]
-
-Specify a pair of schemas for all keys and values.
-
-For example (in YAML):
-
- [hash, {of: [int, int]}]
-
-This specifies that all hash keys as well as values must be ints.
-
-=cut
-
-sub handle_attr_of {
-    my ($self, $data, $arg) = @_;
-    my $has_err = 0;
-
-    push @{ $self->validator->data_pos }, '';
-    foreach my $k (keys %$data) {
-        $self->validator->data_pos->[-1] = $k;
-        if (!$self->validator->_validate($k, $arg->[0])) {
-            $has_err++;
-        }
-        last if $self->validator->too_many_errors;
-        if (!$self->validator->_validate($data->{$k}, $arg->[1])) {
-            $has_err++;
-        }
-        last if $self->validator->too_many_errors;
-    }
-    pop @{ $self->validator->data_pos };
-    !$has_err;
+    my ($code, $csubname) = $ds->emitpls_sub($arg);
+    $perl .= $code;
+    
+    $perl .= 'push @$datapos, "";'."\n";
+    $perl .= 'foreach my $k (keys %$data) {'."\n";
+    $perl .= '    $datapos->[-1] = $k;'."\n";
+    $perl .= '    my ($suberrors) = '.$csubname.'($k, $datapos, $schemapos);'."\n";
+    $perl .= '    push @errors, @$suberrors;'."\n";
+    $perl .= '    if (@errors > '.$ds->config->max_errors.') { last L1 }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$datapos;'."\n";
+    $perl;
 }
 
-=head2 some_of => [[KEY_SCHEMA, VALUE_SCHEMA, MIN, MAX], [KEY_SCHEMA2, VALUE_SCHEMA2, MIN2, MAX2], ...]
 
-Requires that some elements be of certain type. TYPE is the name of the type,
-MIN and MAX are numbers, -1 means unlimited.
+sub handle_attr_values_of { handle_attr_all_elements(@_) }
+sub emitpl_attr_values_of { emitpl_attr_all_elements(@_) }
+sub handle_attr_of        { handle_attr_all_elements(@_) }
+sub emitpl_attr_of        { emitpl_attr_all_elements(@_) }
 
-Example (in YAML):
-
- [hash, {some_of: [[
-   [str, {one_of: [userid, username, email]}],
-   [str, {required: Yes}],
-   1, 1
- ]]}]
-
-The above requires that the hash has *either* userid, username, or
-email key specified but not both or three of them. In other words, the
-hash has to choose to specify only one of the three.
-
-=cut
 
 sub handle_attr_some_of {
     my ($self, $data, $arg) = @_;
@@ -390,14 +399,14 @@ sub handle_attr_some_of {
         if ($a != -1 && $m < $a) {
             my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
             my $y = !ref($r->[1]) ? $r->[1] : ref($r->[1]) eq 'ARRAY' ? "[$r->[1][0] => ...]" : "{type=>$r->[1]{type}, ...}";
-            $ds->log_error("hash must contain at least $a pairs of types $x => $y");
+            $ds->data_error("hash must contain at least $a pairs of types $x => $y");
             $has_err++;
             last if $ds->too_many_errors;
         }
         if ($b != -1 && $m > $b) {
             my $x = !ref($r->[0]) ? $r->[0] : ref($r->[0]) eq 'ARRAY' ? "[$r->[0][0] => ...]" : "{type=>$r->[0]{type}, ...}";
             my $y = !ref($r->[1]) ? $r->[1] : ref($r->[1]) eq 'ARRAY' ? "[$r->[1][0] => ...]" : "{type=>$r->[1]{type}, ...}";
-            $ds->log_error("hash must contain at most $b pairs of types $x => $y");
+            $ds->data_error("hash must contain at most $b pairs of types $x => $y");
             $has_err++;
             last if $ds->too_many_errors;
         }
@@ -408,27 +417,65 @@ sub handle_attr_some_of {
     !$has_err;
 }
 
-=head2 keys_regex => {REGEX1=>SCHEMA1, REGEX2=>SCHEMA2, ...}
+sub emitpl_attr_some_of {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
 
-Similar to B<keys> but instead of specifying schema for each key, we specify
-schema for each set of keys using regular expression.
+    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`some_of' attribute must be array"); return }
+    my $i=0; for (@$arg) { unless (ref($_) eq 'ARRAY' && @$_ == 4) { $ds->schema_error("`some_of'[$i] attribute must be 3-element array"); return } $i++ }
 
-For example:
+    my @arg;
+    for my $i ((0..@$arg-1)) {
+	my $ksch = $arg->[$i][0];
+	my $vsch = $arg->[$i][1];
+	my $ktstr = !ref($ksch) ? $ksch : ref($ksch) eq "ARRAY" ? "($ksch->[0], ...)" : "($ksch->{type}, ...)";
+	my $vtstr = !ref($vsch) ? $vsch : ref($vsch) eq "ARRAY" ? "($vsch->[0], ...)" : "($vsch->{type}, ...)";
+	my ($kcode, $kcsubname) = $ds->emitpls_sub($ksch);
+	my ($vcode, $vcsubname) = $ds->emitpls_sub($vsch);
+	$perl .= $kcode . $vcode;
+	push @arg, [$kcsubname, $vcsubname, $arg->[$i][2]+0, $arg->[$i][3]+0, $ktstr, $vtstr];
+    }
 
- [hash=>{keys_regex=>{ '\d'=>"int", '^\D+$'=>"str" }}]
+    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= '@arg = ('.join(", ", map {"[\\&$_->[0], \\&$_->[1], $_->[2], $_->[3], '$_->[4]', '$_->[5]']"} @arg).");\n";
+    $perl .= $self->validator->emitpl_my('@num_valid');
+    $perl .= '@num_valid = map {0} 1..@arg;'."\n";
+    
+    $perl .= $self->validator->emitpl_my('$j');
+    $perl .= '$j=0;'."\n";
+    $perl .= 'for my $r (@arg) {'."\n";
+    $perl .= '    for my $k (keys %$data) {'."\n";
+    $perl .= '        my ($ksuberrors) = $r->[0]($k);'."\n";
+    $perl .= '        my ($vsuberrors) = $r->[1]($data->{$k});'."\n";
+    $perl .= '        if (!@$ksuberrors && !@$vsuberrors) { $num_valid[$j]++ }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '    $j++;'."\n";
+    $perl .= '}'."\n";
+    #$perl .= 'print Data::Dumper::Dumper(\@num_valid);'."\n";
 
-This specifies that for all keys which contain a digit, the values must be int,
-while for all non-digit-containing keys, the values must be str. Example: {
-a=>"a", a1=>1, a2=>-3, b=>1 }. Note: b=>1 is valid because 1 is a valid str.
+    $perl .= '$j=0;'."\n";
+    $perl .= 'push @$schemapos, -1;'."\n";
+    $perl .= 'for my $r (@arg) {'."\n";
+    $perl .= '    $schemapos->[-1] = $j;'."\n";
+    $perl .= '    my ($kt, $vt, $a, $b, $m) = ($r->[4], $r->[5], $r->[2], $r->[3], $num_valid[$j]);'."\n";
+    $perl .= '    my $err = ($a != -1 && $m < $a) ? "at least $a" : ($b != -1 && $m > $b) ? "at most $b" : "";'."\n";
+    $perl .= '    if ($err) {'."\n";
+    $perl .= '    '.$self->validator->emitpl_data_error('"hash must contain $err pairs of ($kt, $vt)"', 1)."\n";
+    $perl .= "    }\n";
+    $perl .= '    $j++;'."\n";
+    $perl .= "}\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
 
-=cut
 
 sub handle_attr_keys_regex {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     if (ref($arg) ne 'HASH') {
-        $self->validator->log_error("schema error: `keys_regex' attribute must be hash");
+        $self->validator->schema_error("`keys_regex' attribute must be hash");
         return;
     }
 
@@ -450,37 +497,101 @@ sub handle_attr_keys_regex {
     !$has_err;
 }
 
-=head2 values_match => REGEX
+sub emitpl_attr_keys_regex {
+    my ($self, $arg) = @_;
+    my $perl = '';
+    my $ds = $self->validator;
 
-Specifies that all values must be scalar and match regular expression.
+    if (ref($arg) ne 'HASH') { $ds->schema_error("`elements_regex' attribute must be hash"); return }
 
-=cut
+    my @arg;
+    for my $re (keys %$arg) {
+	my $sch = $arg->{$re};
+	my ($code, $csubname) = $ds->emitpls_sub($sch);
+	$perl .= $code;
+	push @arg, [qr/$re/, $csubname];
+    }
+
+    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= '@arg = ('.join(", ", map {"[".$self->_dump($_->[0]).", \\&$_->[1]]"} @arg).");\n";
+
+    $perl .= 'push @$datapos, "";'."\n";
+    $perl .= 'push @$schemapos, "";'."\n";
+    $perl .= 'for my $k (keys %$data) {'."\n";
+    $perl .= '    $datapos->[-1] = $k;'."\n";
+    $perl .= '    for my $r (@arg) {'."\n";
+    $perl .= '        $schemapos->[-1] = $r->[0];'."\n";
+    $perl .= '        next unless $k =~ qr/$r->[0]/;'."\n";
+    $perl .= '        my ($suberrors) = $r->[1]($data->{$k}, $datapos, $schemapos);'."\n";
+    $perl .= '        push @errors, @$suberrors;'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$datapos;'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
+
 
 sub handle_attr_values_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_element($data, $arg,
                              sub {
-                                (!ref($_[1]) && $_[1] =~ qr/$_[2]/) ?
+                                (defined($_[1]) && !ref($_[1]) && $_[1] =~ qr/$_[2]/) ?
                                 '' :
-                                "$_[1] must match regex $_[2]"
+                                "value ($_[1]) must match regex $_[2]"
                              });
 }
 
-=head2 values_not_match => REGEX
+sub emitpl_attr_values_match {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (defined($v) && !ref($v) && $v =~ qr/$arg/) { $err = "value ($v) must match regex $arg" }'
+    );
+}
 
-The opposite of B<values_match>, requires that all values not match regular
-expression (but must be a scalar).
+# aliases
+sub handle_attr_allowed_values_regex { handle_attr_values_match(@_) }
+sub emitpl_attr_allowed_values_regex { emitpl_attr_values_match(@_) }
 
-=cut
 
 sub handle_attr_values_not_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_element($data, $arg,
                              sub {
-                                (!ref($_[1]) && $_[1] !~ qr/$_[2]/) ?
+                                (defined($_[1]) && !ref($_[1]) && $_[1] !~ qr/$_[2]/) ?
                                 '' :
-                                "$_[1] must not match regex $_[2]"
+                                "value ($_[1]) must not match regex $_[2]"
                              });
+}
+
+sub emitpl_attr_values_not_match {
+    my ($self, $arg) = @_;
+    $self->_emitpl_for_each_element($arg,
+'unless (defined($v) && !ref($v) && $v !~ qr/$arg/) { $err = "value ($v) not must match regex $arg" }'
+    );
+}
+
+# aliases
+sub handle_attr_forbidden_values_regex { handle_attr_values_not_match(@_) }
+sub emitpl_attr_forbidden_values_regex { emitpl_attr_values_not_match(@_) }
+
+
+sub handle_attr_allow_extra_keys {
+    my ($self, $data, $arg) = @_;
+    $self->validator->stash->{allow_extra_hash_keys} = $arg ? 1:0;
+}
+
+sub emitpl_attr_allow_extra_keys {
+    my ($self, $arg) = @_;
+    my $perl = '';
+
+    #not needed?#$self->validator->stash->{allow_extra_hash_keys} = $a;
+    $perl .= $self->validator->emitpl_my('$allow_extra_keys');
+    $perl .= '$allow_extra_keys = '.($arg ? 1:0)."; # from schema\n";
+}
+
+sub short_english {
+    "hash";
 }
 
 sub english {
@@ -525,20 +636,211 @@ sub english {
     return "all";
 }
 
-=head1 AUTHOR
-
-Steven Haryanto, C<< <steven at masterweb.net> >>
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2009 Steven Haryanto, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
-
-=cut
-
 __PACKAGE__->meta->make_immutable;
 no Moose;
 1;
+
+__END__
+=pod
+
+=head1 NAME
+
+Data::Schema::Type::Hash - Type handler for hash ('hash')
+
+=head1 VERSION
+
+version 0.12
+
+=head1 SYNOPSIS
+
+ use Data::Schema;
+
+=head1 DESCRIPTION
+
+This is the type handler for type 'hash'.
+
+Example schema (in YAML syntax):
+
+ - hash
+ - required_keys: [name, age]
+   allowed_keys: [name, age, note]
+   keys:
+     name: str
+     age: [int, {min: 0}]
+
+Example valid data:
+
+ {name: Lisa, age: 14, note: "Bart's sister"}
+
+Example invalid data:
+
+ []                             # not a hash
+ {name: Lisa}                   # doesn't have the required key: age
+ {name: Lisa, age: -1}          # age must be positive integer
+ {name: Lisa, age: 14, sex: F}  # sex is not in list of allowed keys
+
+=head1 TYPE ATTRIBUTES
+
+Hashes are Comparable and HasLength, so you might want to consult the docs of
+those roles to see what type attributes are available.
+
+Aside from those, hash also has these type attributes:
+
+=head2 keys_match => REGEX
+
+Require that all hash keys must match a regular expression.
+
+Aliases: C<allowed_keys_regex>
+
+=head2 keys_not_match => REGEX
+
+This is the opposite of B<keys_match>, forbidding all hash keys from matching a
+regular expression.
+
+Aliases: C<forbidden_keys_regex>
+
+=head2 keys_one_of => [VALUE, ...]
+
+Specify that all hash keys must belong to a list of specified values.
+
+Synonyms: allowed_keys
+
+For example (in YAML):
+
+ [hash, {allowed_keys: [name, age, address]}]
+
+This specifies that only keys 'name', 'age', 'address' are allowed (but none are
+required).
+
+=head2 values_one_of => [VALUE, ...]
+
+Specify that all hash values must belong to a list of specified values.
+
+Synonyms: allowed_values
+
+For example (in YAML):
+
+ [hash, {allowed_values: [1, 2, 3, 4, 5]}]
+
+=head2 required_keys => [KEY1, KEY2. ...]
+
+Require that certain keys exist in the hash.
+
+=head2 required_keys_regex => REGEX
+
+Require that keys matching a regular expression exist in the hash
+
+=head2 keys => {KEY=>SCHEMA1, KEY2=>SCHEMA2, ...}
+
+Specify schema for hash keys (hash values, actually).
+
+For example (in YAML):
+
+ [hash, {keys: { name: str, age: [int, {min: 0}] } }]
+
+This specifies that the value for key 'name' must be a string, and the value for
+key 'age' must be a positive integer.
+
+=head2 keys_of => SCHEMA
+
+Specify a schema for all hash keys.
+
+For example (in YAML):
+
+ [hash, {keys_of: int}]
+
+This specifies that all hash keys must be ints.
+
+=head2 of => SCHEMA
+
+Specify a schema for all hash values.
+
+Synonyms: values_of, all_elements, all_elems, all_elem
+
+For example (in YAML):
+
+ [hash, {of: int}]
+
+This specifies that all hash values must be ints.
+
+=head2 some_of => [[KEY_SCHEMA, VALUE_SCHEMA, MIN, MAX], [KEY_SCHEMA2, VALUE_SCHEMA2, MIN2, MAX2], ...]
+
+Requires that some elements be of certain type. TYPE is the name of the type,
+MIN and MAX are numbers, -1 means unlimited.
+
+Example (in YAML):
+
+ [hash, {some_of: [[
+   [str, {one_of: [userid, username, email]}],
+   [str, {required: Yes}],
+   1, 1
+ ]]}]
+
+The above requires that the hash has *either* userid, username, or
+email key specified but not both or three of them. In other words, the
+hash has to choose to specify only one of the three.
+
+=head2 keys_regex => {REGEX1=>SCHEMA1, REGEX2=>SCHEMA2, ...}
+
+Similar to B<keys> but instead of specifying schema for each key, we specify
+schema for each set of keys using regular expression.
+
+For example:
+
+ [hash=>{keys_regex=>{ '\d'=>"int", '^\D+$'=>"str" }}]
+
+This specifies that for all keys which contain a digit, the values must be int,
+while for all non-digit-containing keys, the values must be str. Example: {
+a=>"a", a1=>1, a2=>-3, b=>1 }. Note: b=>1 is valid because 1 is a valid str.
+
+=head2 values_match => REGEX
+
+Specifies that all values must be scalar and match regular expression.
+
+Aliases: C<allowed_values_regex>
+
+=head2 values_not_match => REGEX
+
+The opposite of B<values_match>, requires that all values not match regular
+expression (but must be a scalar).
+
+Aliases: C<forbidden_values_regex>
+
+=head2 allow_extra_keys => BOOL
+
+Overrides B<allow_extra_hash_keys> config. Useful in subschemas, example (in
+YAML):
+
+ # in schemadir/address.yaml
+ - hash
+ - allowed_keys: [line1, line2, city, province, country, postcode]
+   keys:
+     line1: [str, {required: 1}]
+     line2: str
+     city: [str, {required: 1}]
+     province: [str, {required: 1}]
+     country: [str, {match: '^[A-Z]{2}$', required: 1}]
+     postcode: str
+
+ # in schemadir/us_address.yaml
+ - us_address
+ - allow_extra_keys: 1
+ - keys:
+     country: [str, {is: US}]
+
+Without allow_extra_keys, us_address will only allow key 'country' (due to
+'keys' limiting allowed hash keys to only those specified in it).
+
+=head1 AUTHOR
+
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

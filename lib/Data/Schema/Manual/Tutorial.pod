@@ -1,7 +1,17 @@
+# just to make PodWeaver happy at the moment
+package Data::Schema::Manual::Tutorial;
+
+
+__END__
+=pod
+
 =head1 NAME
 
-Data::Schema::Manual::Tutorial - Introduction to and using Data::Schema
+Data::Schema::Manual::Tutorial
 
+=head1 VERSION
+
+version 0.12
 
 =head1 OVERVIEW
 
@@ -9,6 +19,9 @@ This document is meant to be first reading for people wanting to know
 and use Data::Schema (DS). It explains what DS is and what it is for,
 how to write DS schemas, and how to validate data structures using DS.
 
+=head1 NAME
+
+Data::Schema::Manual::Tutorial - Introduction to and using Data::Schema
 
 =head1 INTRODUCTION
 
@@ -32,7 +45,7 @@ This is why schemas are a good thing. A schema is a data structure, not code,
 that declaratively specifies this kind of validation. The functionality of the
 above code can be replaced with this DS schema:
 
- [array=>{of=>'float', minlen=>1}]
+ my $schema = [array=>{required=>1, of=>'float', minlen=>1}];
 
 And the final code becomes:
 
@@ -46,6 +59,13 @@ than manual data validation. Because DS schemas are just normal data structures,
 they are reusable across programming languages and can also be validated
 themselves (using, why, DS schemas of course).
 
+You can also turn the schema into Perl code (which can run without DS), and
+other languages' code too in the future. This can be useful for increasing
+performance, or when you do not want DS itself in production environment and
+just want the validation code.
+
+So essentially, DS is a way of writing validation code that is shorter/simpler
+and more cross-platform/cross-language than writing directly in Perl.
 
 =head1 WRITING SCHEMAS
 
@@ -81,7 +101,6 @@ int, float, bool, str, and object types, among others.
 
 If you want, you can even write your own type in Perl.
 
-
 =head1 VALIDATING USING DS
 
 The simplest way is just by using the ds_validate() function. It is exported
@@ -97,14 +116,13 @@ Example:
 
 The result ($res) is a hashref:
 
- {success=>(0 or 1), errors=>[...], warnings=>[...]}
+ {success=>(0 or 1), errors=>[...]}
 
-The 'success' key will be set to 1 if validation is successful, or 0
-if not.  The 'errors' (and 'warnings') keys are each a list of errors
-(and warnings) provided should you want to check for details why the
-validation fails. Each error/warning message is prefixed with data and
-schema path-like position to help you pinpoint where in the data and
-schema the validation fails.
+The 'success' key will be set to 1 if validation is successful, or 0 if not.
+The 'errors' keys are each a list of errors provided should you want to
+check for details why the validation fails. Each error message is prefixed
+with data and schema path-like position to help you pinpoint where in the
+data and schema the validation fails.
 
 The second way, OO-style, provides more control and options:
 
@@ -127,7 +145,6 @@ The result is the same hashref described above.
 
 Refer to L<Data::Schema> for details on available configuration and other
 methods.
-
 
 =head1 ANY AND ALL
 
@@ -157,21 +174,22 @@ example:
 The above says that you want an int between 1-10, OR between 101-110, OR between
 1001-1010.
 
-There is also the B<all> virtual type that requires the data to satisfies ALL
+There is also the B<all> virtual type that requires the data to satisfy ALL
 requirements instead of just one. For example:
 
  [
   "all",
   of => [
-    [string => {match=>'^\w+$'}],
-    [string => {match=>'^(.)\1$'}],
-    [string => {match=>'^[aeiou]$'}],
+    [str => {match=>'^\w+$'}],
+    [str => {match=>'^(.)\1$'}],
+    [str => {match=>'^[aeiou]$'}],
   ]
  ]
 
 The above says that you need a string which is composed of alphanumeric
 characters only and it has a sequence of two identical characters, and also that
-it has a vowel.
+it has a vowel. Strings such as C<google> will validate, but these won't:
+C<foo bar>, C<bing>, C<http>.
 
 =head2 DEFINING SCHEMAS IN TERMS OF OTHER SCHEMAS
 
@@ -207,7 +225,6 @@ Of course you can also write the schema in "one go":
 
 but some of us might find breaking down a complex schema into pieces
 help in better understanding it.
-
 
 =head1 EXTERNAL SCHEMAS
 
@@ -250,14 +267,24 @@ Another alternative is putting schemas in YAML files.
 
  # in schemadir/address.yaml
  - hash
- - required_keys: [line1, line2, city, province, country, postcode]
+ - allowed_keys: [line1, line2, city, province, country, postcode]
    keys:
      line1:    [str, {required: 1}]
      line2:     str
      city:     [str, {required: 1}]
-     province: [str, {required: 1}],
-     country:  [str, {match: '/^[A-Z]{2}$/', required: 1}]
+     province: [str, {required: 1}]
+     country:  [str, {match: '^[A-Z]{2}$', required: 1}]
      postcode: [str, {minlen: 4, maxlen: 15}]
+   deps:
+     - [country, [str, {set: 1, is: US}], postcode, [str, {match: '^[0-9]{5}$'}]]
+     - [country, [str, {set: 1, is: ID}], postcode, [str, {match: '^[0-9]{5}$'}]]
+     # add postcode rules for more countries
+
+ # in schemadir/us_address.yaml
+ - us_address
+ - allow_extra_keys: 1
+   keys:
+     country: [str, {is: US}]
 
  # in schemadir/even.yaml
  - int
@@ -271,11 +298,9 @@ Another alternative is putting schemas in YAML files.
  $res = validate(4, 'even');              # success
  $res = validate(4, [even => {min=>10}]); # fail: less than 10
 
-
 =head1 MORE EXAMPLES
 
 For now, please see the B<t/schemas/> directory in the distribution.
-
 
 =head1 SEE ALSO
 
@@ -285,11 +310,18 @@ L<Data::Schema::Manual::Plugin>
 
 =head1 AUTHOR
 
-Steven Haryanto, C<< <steven at masterweb.net> >>
-
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+=head1 AUTHOR
 
-This module is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+  Steven Haryanto <stevenharyanto@gmail.com>
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2009 by Steven Haryanto.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut
+

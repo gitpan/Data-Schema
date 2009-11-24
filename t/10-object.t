@@ -2,13 +2,12 @@
 
 use strict;
 use warnings;
-use Test::More tests => 50;
+use Test::More;
 
 use lib './t';
 require 'testlib.pm';
 
-use_ok('Data::Schema::Type::Object');
-use_ok('Data::Schema');
+use Data::Schema;
 
 valid(undef, 'object', 'undef');
 invalid('', 'object', 'scalar');
@@ -76,3 +75,7 @@ for (qw(not_isa)) { # 1x6=6
     invalid($d3, [object=>{$_=>[qw/C1 C2/]}], "$_ 5");
     invalid($d4, [object=>{$_=>[qw/C1 C2/]}], "$_ 6");
 }
+
+test_scalar_deps('object', $c1, {isa=>[qw/C1/]}, {isa=>[qw/D1/]});
+
+done_testing();

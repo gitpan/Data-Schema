@@ -1,8 +1,95 @@
 package Data::Schema::Type::Schema;
+our $VERSION = '0.12';
+
+
+# ABSTRACT: Make schema as type
+
+
+use Moose;
+use Scalar::Util qw/tainted/;
+
+extends 'Data::Schema::Type::Base';
+
+has name => (is => 'rw');
+
+# normalized schema
+has nschema => (is => 'rw');
+
+sub handle_type {
+    my ($self, $data, $attr_hashes) = @_;
+
+    my $s = $self->nschema;
+    my $ds = $self->validator;
+    $ds->save_validation_state();
+    $ds->init_validation_state();
+    $ds->_validate($data, {
+                           type=>$s->{type},
+                           attr_hashes=>[@{$s->{attr_hashes}}, @$attr_hashes],
+                           def=>$s->{def}});
+    my $errors = $ds->errors;
+    $ds->restore_validation_state();
+
+    # push errors
+    for (@$errors) {
+        if (@{ $ds->errors } >= $ds->config->max_errors) {
+            $ds->too_many_errors(1);
+            last;
+        }
+        push @{ $ds->errors },
+            [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
+    }
+
+    !@$errors;
+};
+
+sub emit_perl {
+    my ($self, $attr_hashes, $subname) = @_;
+    $subname //= "NONAME";
+    my $ds = $self->validator;
+    my $s = $self->nschema;
+    my $perl = '';
+
+    my ($code, $basecsubname) = $ds->emitpls_sub(
+	{
+	    type=>$s->{type},
+	    attr_hashes=>[@{$s->{attr_hashes}}, @$attr_hashes],
+	    def=>$s->{def}
+	}
+    );
+    $perl .= $code;
+    $perl .= "# schema: ".$self->name." ".$self->_dump($attr_hashes)."\n";
+    $perl .= "sub ".$subname.' {'."\n";
+    $perl .= "    ".$basecsubname.'(@_);'."\n";
+    $perl .= "}\n\n";
+
+    $perl;
+};
+
+sub short_english {
+    my ($self) = @_;
+    "schema_" . $self->name;
+}
+
+sub english {
+    my ($self) = @_;
+    $self->name;
+}
+
+
+__PACKAGE__->meta->make_immutable;
+no Moose;
+1;
+
+__END__
+=pod
 
 =head1 NAME
 
 Data::Schema::Type::Schema - Make schema as type
+
+=head1 VERSION
+
+version 0.12
 
 =head1 SYNOPSIS
 
@@ -30,61 +117,9 @@ This is the type handler that makes a schema available as type in other
 schemas. What this basically does is that you can reuse a schema in other
 schemas.
 
-Implementation-wise, this is the only type not deriving from
-L<Data::Schema::Type::Base>.
-
 To load schemas, either from a hash or YAML files, see
 L<Data::Schema::Plugin::LoadSchema::Hash> or
 L<Data::Schema::Plugin::LoadSchema::YAMLFile>.
-
-=cut
-
-use Moose;
-
-has validator => (is => 'rw');
-
-# normalized schema
-has nschema => (is => 'rw');
-
-sub handle_type {
-    my ($self, $data, $attr_hashes) = @_;
-
-    my $s = $self->nschema;
-    my $ds = $self->validator;
-    $ds->save_validation_state();
-    $ds->init_validation_state();
-    $ds->_validate($data, {
-                           type=>$s->{type},
-                           attr_hashes=>[@{$s->{attr_hashes}}, @$attr_hashes],
-                           def=>$s->{def}});
-    my $errors = $ds->errors;
-    my $warnings = $ds->warnings;
-    $ds->restore_validation_state();
-
-    # push errors & warnings
-    for (@$warnings) {
-        if (@{ $ds->warnings } >= $ds->config->max_warnings) {
-            $ds->too_many_warnings(1);
-            last;
-        }
-        push @{ $ds->warnings },
-            [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
-    }
-    for (@$errors) {
-        if (@{ $ds->errors } >= $ds->config->max_errors) {
-            $ds->too_many_errors(1);
-            last;
-        }
-        push @{ $ds->errors },
-            [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
-    }
-
-    !@$errors;
-}
-
-sub english {
-    "schema";
-}
 
 =head1 TYPE ATTRIBUTES
 
@@ -97,18 +132,14 @@ L<Data::Schema::Manual::Schema>
 
 =head1 AUTHOR
 
-Steven Haryanto, C<< <steven at masterweb.net> >>
+  Steven Haryanto <stevenharyanto@gmail.com>
 
-=head1 COPYRIGHT & LICENSE
+=head1 COPYRIGHT AND LICENSE
 
-Copyright 2009 Steven Haryanto, all rights reserved.
+This software is copyright (c) 2009 by Steven Haryanto.
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
 
-__PACKAGE__->meta->make_immutable;
-no Moose;
-1;

@@ -2,15 +2,13 @@
 
 use strict;
 use warnings;
-use Test::More tests => 17;
+use Test::More;
 
 use lib './t';
 require 'testlib.pm';
 
-use_ok('Data::Schema::Type::Either');
-use_ok('Data::Schema');
+use Data::Schema;
 
-# 3x1x5=15
 for my $type (qw(either or any)) {
     for (qw(of)) {
         my $sch = [$type => {$_ => [ [int=>{divisible_by=>2}], [int=>{divisible_by=>7}] ]}];
@@ -22,3 +20,7 @@ for my $type (qw(either or any)) {
         valid(42, $sch, "$_ 4");
     }
 }
+
+test_scalar_deps('either', "x", {of=>["int", "str"]}, {of=>["int"]});
+
+done_testing();
