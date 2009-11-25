@@ -1,5 +1,5 @@
 package Data::Schema::Config;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Data::Schema configuration
@@ -8,7 +8,10 @@ our $VERSION = '0.12';
 use Moose;
 
 
-has max_errors => (is => 'rw', default => 10);
+has max_errors => (is => 'rw', default => 100);
+
+
+has max_warnings => (is => 'rw', default => 100);
 
 
 has schema_search_path => (is => 'rw', default => sub { ["."] });
@@ -21,6 +24,9 @@ has defer_loading => (is => 'rw', default => 1);
 
 
 has allow_extra_hash_keys => (is => 'rw', default => 0);
+
+
+has debug => (is => 'rw', default => 0);
 
 
 has compile => (is => 'rw', default => 0);
@@ -38,7 +44,7 @@ Data::Schema::Config - Data::Schema configuration
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -56,7 +62,13 @@ Configuration variables for Data::Schema.
 
 =head2 max_errors => INT
 
-Maximum number of errors before validation stops. Default is 10.
+Maximum number of errors before validation stops with 'too many
+errors' message. Default is 10.
+
+=head2 max_warnings => INT
+
+Maximum number of warnings before no more warnings are recorded. 
+Default is 10.
 
 =head2 schema_search_path => ARRAYREF
 
@@ -72,7 +84,7 @@ See <Data::Schema::Type::Schema> for more details.
 If set to a coderef, then this will be used to get custom error message when
 errmsg attribute suffix is used. For example, if schema is:
 
- [str => {regex=>'/^\w+$/', 'regex.errmsg'=>'alphanums_only'}]
+ [str => {regex=>'/^\w+$/', 'regex:errmsg'=>'alphanums_only'}]
 
 then your function will be called with 'alphanums_only' as the argument.
 
@@ -100,6 +112,15 @@ Example:
  # but
  ds_validate({c=>1}, [hash => {keys=>{a=>"int", b=>"int"},
                                allowed_keys=>[qw/a b/]}]); # still not allowed due to allowed_keys
+
+=head2 debug => INT
+
+Default 0. Valid values between 0 and 5. Validation emits debugging
+info of various levels into logs. Increase this if you want to see
+more debugging. Useful if you have complex schema.
+
+Compiled schema currently does not emit debugging info, so if you're
+debugging schema, turn off compilation. See C<compile>.
 
 =head2 compile => BOOL
 

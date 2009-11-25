@@ -11,7 +11,7 @@ Data::Schema::Manual::Schema
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 OVERVIEW
 
@@ -204,7 +204,20 @@ write a type handler, see L<Data::Schema::Manual::TypeHandler>.
 
 =head1 ATTRHASH
 
-An attribute hash is a mapping of attribute names and values.
+An attribute hash is a mapping of attribute names and values:
+
+ {
+   "PrefixNameSuffix" => value,
+   ...
+ }
+
+Example:
+
+ {
+   ^min => 0,
+   "min:errmsg" => "Only positive numbers are accepted",
+   max => 100,
+ }
 
 Each type has its own set of known attribute names. To see what
 attributes a type supports, see type handler module documentation. For
@@ -215,6 +228,12 @@ attribute hash will be evaluated in order. However, if a key on one
 attribute hash contains a prefix (see B<Attribute prefix> section
 below), merging will occur (see B<Merging of attribute hashes> section
 below).
+
+=head1 Attribute name
+
+Attribute names must begin with letter/underscore and contain
+letters/numbers/underscores only. All attributes which begin with an
+underscore will be ignored.
 
 =head2 Attribute prefix
 
@@ -231,9 +250,11 @@ attribute prefixes on its keys.
 
 =head2 Attribute suffix
 
-Attribute suffix is the dot character (".") followed by one of these:
+Attribute suffix is the colon character (":") followed by one of these:
 
- errmsg
+ err warn
+ errmsg warnmsg
+ comment note
 
 They give additional information/instruction associated with the
 attribute. They are not necessarily passed to the type attribute
@@ -242,13 +263,31 @@ useful only to the validator.
 
 Validation will fail if an unknown suffix is specified.
 
+=head3 err
+
+When attribute checking fails, raise an error. This is the default
+behaviour.
+
+=head3 warn
+
+When attribute checking fails, raise a warning instead of an
+error. You can use this to add warnings which do not make the
+validation fail.
+
+ [str=>{minlen        =>4,
+        minlen:warn   =>8}]
+
+In the above example, validation fails when data is shorter than 4
+characters. When the data is between 4-7 characters, validation
+succeeds with a warning.
+
 =head3 errmsg
 
 This attribute suffix is used to supply custom error message. For
 example:
 
  [str=>{regex=>'^\w{4,8}$',
-        regex.errmsg=>'4-8 alphanumeric characters only!'}]
+        regex:errmsg=>'4-8 alphanumeric characters only!'}]
 
 When validating the B<regex> attribute fails, instead of the default
 error message from type handler, validator will use the custom error
@@ -256,7 +295,30 @@ message giving clearer information to the user.
 
 Note: if B<gettext_function> configuration is set, this message will
 be passed to the function first before being returned. See
-L<Data::Schema> for more on configuration.
+L<Data::Schema::Config> for more on configuration.
+
+=head3 warnmsg
+
+Just like errmsg but for warnings. For example:
+
+ [str=>{minlen        =>4,
+        minlen:warn   =>8,
+        minlen:warnmsg=>'password shorter than 8 letters is ok, but not recommended'}]
+
+=head3 comment and note
+
+They will be ignored during validation. You can use it to document your
+schema if you want.
+
+ [hash,
+  { ":comment" => "this schema validates event record",
+    required_keys => [qw/time place parties/],
+    "required_keys:note" => "at least date, time, place, and participants must be specified",
+    keys => {
+      date => [datetime, {set=>1}],
+      ...
+    },
+  }]
 
 =head2 Merging of attribute hashes
 
@@ -318,6 +380,20 @@ Examples:
 
 Refer to L<Data::PrefixMerge> for details on merging syntax and behaviour.
 
+=head3 Merging and hash keys (and regexes)
+
+If you use attribute hash merging, certain first character of hash
+keys, i.e. C<^>, C<+>, C<->, C<.>, and C<*> will be treated as special
+and will be processed, and eventually removed, except the keep mode
+prefix C<^>. See L<Data::PrefixMerge> for more details on how merging
+works.
+
+Since this is done recursively, you have to be careful when you have
+hash keys that might start with one of those characters. Particularly
+regex keys (e.g. when using type attributes like hash's C<keys_regex>
+or array's C<element_regex>) because regex often contains C<^> at the
+beginning. One workaround is to use C<\A> instead of C<^>.
+
 =head1 NAMING SCHEMAS FOR USE IN OTHER SCHEMAS
 
 Schemas can be defined for use in other schemas. Example:
@@ -340,9 +416,35 @@ not be available outside of this schema.
 Another way is by putting schemas in Perl hash or in YAML files and then loading
 them using L<DSP::LoadSchema::Hash> or L<DSP::LoadSchema::YAMLFile>.
 
-=head1 AUTHOR
+When evaluating "schema types" (schema that is used as type), the
+schema type is expanded, and the resulting attribute hashes are merged
+when necessary. For example, if we have:
 
-=head1 COPYRIGHT & LICENSE
+ [uint => {divisible_by => 2}]
+
+where uint is defined as:
+
+ [int => {min => 0}]
+
+Then when evaluating the first schema, it will be expanded into:
+
+ [int => {min => 0} => {divisible_by => 2}]
+
+Another example:
+
+ [special_provinces => { "+one_of" => ["DKI"] }]
+
+where special_provinces is:
+
+ [str => { one_of => ["Aceh", "Djogjakarta"] }]
+
+will become:
+
+ [str => { one_of => ["Aceh", "Djogjakarta"] } => { "+one_of" => ["DKI"] }]
+
+when merged will become:
+
+ [str => { one_of => ["Aceh", "Djogjakarta", "DKI"] }]
 
 =head1 AUTHOR
 

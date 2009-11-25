@@ -1,5 +1,5 @@
 package Data::Schema::Type::Hash;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for hash ('hash')
@@ -7,10 +7,13 @@ our $VERSION = '0.12';
 
 use Moose;
 extends 'Data::Schema::Type::Base';
-with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasElement';
+with 
+    'Data::Schema::Type::Comparable', 
+    'Data::Schema::Type::Scalar', # for 'deps' only actually
+    'Data::Schema::Type::HasElement';
 use Storable qw/freeze/;
 
-# see note in Array.pm on why we use. basically for speed.
+# see note in Array.pm on why we use Storable's freeze(). basically for speed.
 sub _equal {
     my ($self, $a, $b) = @_;
     ((ref($a) ? freeze($a) : $a) eq (ref($b) ? freeze($b) : $b));
@@ -78,6 +81,11 @@ sub sort_attr_hash_keys {
 
 
 
+sub chkarg_attr_keys_match {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_regex($arg, $name);
+}
+
 sub handle_attr_keys_match {
     my ($self, $data, $arg) = @_;
     $self->_for_each_element($data, $arg,
@@ -95,10 +103,10 @@ sub emitpl_attr_keys_match {
     );
 }
 
-# aliases
-sub handle_attr_allowed_keys_regex { handle_attr_keys_match(@_) }
-sub emitpl_attr_allowed_keys_regex { emitpl_attr_keys_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(keys_match => qw/allowed_keys_regex/);
 
+
+sub chkarg_attr_keys_not_match { chkarg_attr_keys_match(@_) }
 
 sub handle_attr_keys_not_match {
     my ($self, $data, $arg) = @_;
@@ -117,10 +125,13 @@ sub emitpl_attr_keys_not_match {
     );
 }
 
-# aliases
-sub handle_attr_forbidden_keys_regex { handle_attr_keys_not_match(@_) }
-sub emitpl_attr_forbidden_keys_regex { emitpl_attr_keys_not_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(keys_not_match => qw/forbidden_keys_regex/);
 
+
+sub chkarg_attr_keys_one_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_str($arg, $name);
+}
 
 sub handle_attr_keys_one_of {
     my ($self, $data, $arg) = @_;
@@ -148,10 +159,13 @@ sub emitpl_attr_keys_one_of {
     );
 }
 
-# aliases
-sub handle_attr_allowed_keys { handle_attr_keys_one_of(@_) }
-sub emitpl_attr_allowed_keys { emitpl_attr_keys_one_of(@_) }
+Data::Schema::Type::Base::__make_attr_alias(keys_one_of => qw/allowed_keys/);
 
+
+sub chkarg_attr_values_one_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name);
+}
 
 sub handle_attr_values_one_of {
     my ($self, $data, $arg) = @_;
@@ -180,10 +194,13 @@ sub emitpl_attr_values_one_of {
     );
 }
 
-# aliases
-sub handle_attr_allowed_values { handle_attr_values_one_of(@_) }
-sub emitpl_attr_allowed_values { emitpl_attr_values_one_of(@_) }
+Data::Schema::Type::Base::__make_attr_alias(values_one_of => qw/allowed_values/);
 
+
+sub chkarg_attr_required_keys {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_str($arg, $name);
+}
 
 sub handle_attr_required_keys {
     my ($self, $data, $arg) = @_;
@@ -220,6 +237,11 @@ sub emitpl_attr_required_keys {
 }
 
 
+sub chkarg_attr_required_keys_regex {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_regex($arg, $name);
+}
+
 sub handle_attr_required_keys_regex {
     my ($self, $data, $arg) = @_;
     my $found;
@@ -247,15 +269,24 @@ sub emitpl_attr_required_keys_regex {
 }
 
 
+sub chkarg_attr_keys {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_hash($arg, $name, 0, 0,
+                         sub {
+                             my ($arg, $name) = @_;
+                             $self->chkarg_r_str($arg, $name);
+                         },
+                         sub {
+                             my ($arg, $name) = @_;
+                             $self->chkarg_r_schema($arg, $name);
+                         }
+                     );
+}
+
 sub handle_attr_keys {
     my ($self, $data, $arg) = @_;
     my $ds = $self->validator;
     my $has_err = 0;
-
-    if (ref($arg) ne 'HASH') {
-        $ds->schema_error("`keys' attribute must be hash");
-        return;
-    }
 
     my $allow_extra0 = $ds->stash->{allow_extra_hash_keys};
     my $allow_extra =  defined($allow_extra0) ? $allow_extra0 :
@@ -285,10 +316,9 @@ sub emitpl_attr_keys {
     my ($self, $arg) = @_;
     my $ds = $self->validator;
     my $perl = '';
-    if (ref($arg) ne 'HASH') { $ds->schema_error("`keys' attribute must be hash"); return }
 
     $perl .= $ds->emitpl_my('$allow_extra_keys');
-    $perl .= '$allow_extra_keys = 1; # from DS config'."\n" if $ds->config->allow_extra_hash_keys;
+    $perl .= '$allow_extra_keys //= 1; # from DS config'."\n" if $ds->config->allow_extra_hash_keys;
 
     my %schemas;
     for my $k (keys %$arg) {
@@ -313,9 +343,8 @@ sub emitpl_attr_keys {
     $perl .= '    } else {'."\n";
     $perl .= '        $datapos->[-1] = $k;'."\n";
     $perl .= '        $schemapos->[-1] = $k;'."\n";
-    $perl .= '        my ($suberrors) = $schemas{$k}($data->{$k}, $datapos, $schemapos);'."\n";
-    $perl .= '        push @errors, @$suberrors;'."\n";
-    $perl .= '        if (@errors > '.$ds->config->max_errors.') { last L1 }'."\n";
+    $perl .= '        my ($suberrors, $subwarnings) = $schemas{$k}($data->{$k}, $datapos, $schemapos);'."\n";
+    $perl .= '        '.$ds->emitpl_push_errwarn();
     $perl .= '    }'."\n";
     $perl .= '}'."\n";
     $perl .= 'pop @$datapos;'."\n";
@@ -323,6 +352,11 @@ sub emitpl_attr_keys {
     $perl;
 }
 
+
+sub chkarg_attr_keys_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_schema($arg, $name);
+}
 
 sub handle_attr_keys_of {
     my ($self, $data, $arg) = @_;
@@ -347,24 +381,37 @@ sub emitpl_attr_keys_of {
 
     my ($code, $csubname) = $ds->emitpls_sub($arg);
     $perl .= $code;
-    
+
     $perl .= 'push @$datapos, "";'."\n";
     $perl .= 'foreach my $k (keys %$data) {'."\n";
     $perl .= '    $datapos->[-1] = $k;'."\n";
-    $perl .= '    my ($suberrors) = '.$csubname.'($k, $datapos, $schemapos);'."\n";
-    $perl .= '    push @errors, @$suberrors;'."\n";
-    $perl .= '    if (@errors > '.$ds->config->max_errors.') { last L1 }'."\n";
+    $perl .= '    my ($suberrors, $subwarnings) = '.$csubname.'($k, $datapos, $schemapos);'."\n";
+    $perl .= '    '.$ds->emitpl_push_errwarn();
     $perl .= '}'."\n";
     $perl .= 'pop @$datapos;'."\n";
     $perl;
 }
 
+Data::Schema::Type::Base::__make_attr_alias(keys_of => qw/all_keys/);
 
-sub handle_attr_values_of { handle_attr_all_elements(@_) }
-sub emitpl_attr_values_of { emitpl_attr_all_elements(@_) }
-sub handle_attr_of        { handle_attr_all_elements(@_) }
-sub emitpl_attr_of        { emitpl_attr_all_elements(@_) }
 
+Data::Schema::Type::Base::__make_attr_alias(all_elements => qw/of all_values values_of/);
+
+
+sub chkarg_attr_some_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              my ($arg, $name) = @_;
+                              return unless $self->chkarg_r_array(@_, 4, 4);
+                              return unless $self->chkarg_r_schema($arg->[0], "$name/0");
+                              return unless $self->chkarg_r_schema($arg->[1], "$name/1");
+                              return unless $self->chkarg_r_int($arg->[2], "$name/2");
+                              return unless $self->chkarg_r_int($arg->[3], "$name/3");
+                              1;
+                          }
+                      );
+}
 
 sub handle_attr_some_of {
     my ($self, $data, $arg) = @_;
@@ -422,9 +469,6 @@ sub emitpl_attr_some_of {
     my $ds = $self->validator;
     my $perl = '';
 
-    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`some_of' attribute must be array"); return }
-    my $i=0; for (@$arg) { unless (ref($_) eq 'ARRAY' && @$_ == 4) { $ds->schema_error("`some_of'[$i] attribute must be 3-element array"); return } $i++ }
-
     my @arg;
     for my $i ((0..@$arg-1)) {
 	my $ksch = $arg->[$i][0];
@@ -441,13 +485,13 @@ sub emitpl_attr_some_of {
     $perl .= '@arg = ('.join(", ", map {"[\\&$_->[0], \\&$_->[1], $_->[2], $_->[3], '$_->[4]', '$_->[5]']"} @arg).");\n";
     $perl .= $self->validator->emitpl_my('@num_valid');
     $perl .= '@num_valid = map {0} 1..@arg;'."\n";
-    
+
     $perl .= $self->validator->emitpl_my('$j');
     $perl .= '$j=0;'."\n";
     $perl .= 'for my $r (@arg) {'."\n";
     $perl .= '    for my $k (keys %$data) {'."\n";
-    $perl .= '        my ($ksuberrors) = $r->[0]($k);'."\n";
-    $perl .= '        my ($vsuberrors) = $r->[1]($data->{$k});'."\n";
+    $perl .= '        my ($ksuberrors, $ksubwarnings) = $r->[0]($k);'."\n";
+    $perl .= '        my ($vsuberrors, $vsubwarnings) = $r->[1]($data->{$k});'."\n";
     $perl .= '        if (!@$ksuberrors && !@$vsuberrors) { $num_valid[$j]++ }'."\n";
     $perl .= '    }'."\n";
     $perl .= '    $j++;'."\n";
@@ -470,30 +514,48 @@ sub emitpl_attr_some_of {
 }
 
 
+sub chkarg_attr_keys_regex {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_hash($arg, $name, 0, 0,
+                         sub {
+                             $self->chkarg_r_regex(@_);
+                         },
+                         sub {
+                             $self->chkarg_r_schema(@_);
+                         }
+                     );
+}
+
 sub handle_attr_keys_regex {
     my ($self, $data, $arg) = @_;
+    my $ds = $self->validator;
     my $has_err = 0;
 
-    if (ref($arg) ne 'HASH') {
-        $self->validator->schema_error("`keys_regex' attribute must be hash");
-        return;
-    }
+    my $allow_extra0 = $ds->stash->{allow_extra_hash_keys};
+    my $allow_extra =  defined($allow_extra0) ? $allow_extra0 :
+        $ds->config->allow_extra_hash_keys;
 
-    push @{ $self->validator->data_pos }, '';
+    push @{ $ds->data_pos }, '';
     for my $k (keys %$data) {
-        $self->validator->data_pos->[-1] = $k;
+        $ds->data_pos->[-1] = $k;
+	my $found;
         for my $ks (keys %$arg) {
             next unless $k =~ qr/$ks/;
-            push @{ $self->validator->schema_pos }, $ks;
-            if (!$self->validator->_validate($data->{$k}, $arg->{$ks})) {
+            $found++;
+	    push @{ $ds->schema_pos }, $ks;
+            if (!$ds->_validate($data->{$k}, $arg->{$ks})) {
                 $has_err++;
             }
-            pop @{ $self->validator->schema_pos };
-            last if $self->validator->too_many_errors;
+            pop @{ $ds->schema_pos };
+            last if $ds->too_many_errors;
         }
-        last if $self->validator->too_many_errors;
+	if (!$found && !$allow_extra) {
+	    $has_err++;
+	    $ds->data_error("invalid key");
+	}
+        last if $ds->too_many_errors;
     }
-    pop @{ $self->validator->data_pos };
+    pop @{ $ds->data_pos };
     !$has_err;
 }
 
@@ -501,8 +563,6 @@ sub emitpl_attr_keys_regex {
     my ($self, $arg) = @_;
     my $perl = '';
     my $ds = $self->validator;
-
-    if (ref($arg) ne 'HASH') { $ds->schema_error("`elements_regex' attribute must be hash"); return }
 
     my @arg;
     for my $re (keys %$arg) {
@@ -512,25 +572,37 @@ sub emitpl_attr_keys_regex {
 	push @arg, [qr/$re/, $csubname];
     }
 
-    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= $ds->emitpl_my('$allow_extra_keys');
+    $perl .= '$allow_extra_keys //= 1; # from DS config'."\n" if $ds->config->allow_extra_hash_keys;
+
+    $perl .= $ds->emitpl_my('@arg');
     $perl .= '@arg = ('.join(", ", map {"[".$self->_dump($_->[0]).", \\&$_->[1]]"} @arg).");\n";
 
     $perl .= 'push @$datapos, "";'."\n";
     $perl .= 'push @$schemapos, "";'."\n";
+    $perl .= $ds->emitpl_my('$found');
     $perl .= 'for my $k (keys %$data) {'."\n";
+    $perl .= '    $found = 0;'."\n";
     $perl .= '    $datapos->[-1] = $k;'."\n";
     $perl .= '    for my $r (@arg) {'."\n";
     $perl .= '        $schemapos->[-1] = $r->[0];'."\n";
     $perl .= '        next unless $k =~ qr/$r->[0]/;'."\n";
-    $perl .= '        my ($suberrors) = $r->[1]($data->{$k}, $datapos, $schemapos);'."\n";
-    $perl .= '        push @errors, @$suberrors;'."\n";
+    $perl .= '        $found++;'."\n";
+    $perl .= '        my ($suberrors, $subwarnings) = $r->[1]($data->{$k}, $datapos, $schemapos);'."\n";
+    $perl .= '        '.$ds->emitpl_push_errwarn();
     $perl .= '    }'."\n";
+    $perl .= '    if (!$found && !$allow_extra_keys) { '.$ds->emitpl_data_error('"invalid key `$k`"', 1)." }\n";
     $perl .= '}'."\n";
     $perl .= 'pop @$datapos;'."\n";
     $perl .= 'pop @$schemapos;'."\n";
     $perl;
 }
 
+
+sub chkarg_attr_values_match {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_regex($arg, $name);
+}
 
 sub handle_attr_values_match {
     my ($self, $data, $arg) = @_;
@@ -549,10 +621,10 @@ sub emitpl_attr_values_match {
     );
 }
 
-# aliases
-sub handle_attr_allowed_values_regex { handle_attr_values_match(@_) }
-sub emitpl_attr_allowed_values_regex { emitpl_attr_values_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(values_match => qw/allowed_values_regex/);
 
+
+sub chkarg_attr_values_not_match { chkarg_attr_values_match(@_) }
 
 sub handle_attr_values_not_match {
     my ($self, $data, $arg) = @_;
@@ -571,10 +643,16 @@ sub emitpl_attr_values_not_match {
     );
 }
 
-# aliases
-sub handle_attr_forbidden_values_regex { handle_attr_values_not_match(@_) }
-sub emitpl_attr_forbidden_values_regex { emitpl_attr_values_not_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(values_not_match => qw/forbidden_values_regex/);
 
+
+Data::Schema::Type::Base::__make_attr_alias(element_deps => qw/key_deps key_dep/);
+
+
+sub chkarg_attr_allow_extra_keys {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_bool($arg, $name);
+}
 
 sub handle_attr_allow_extra_keys {
     my ($self, $data, $arg) = @_;
@@ -588,6 +666,236 @@ sub emitpl_attr_allow_extra_keys {
     #not needed?#$self->validator->stash->{allow_extra_hash_keys} = $a;
     $perl .= $self->validator->emitpl_my('$allow_extra_keys');
     $perl .= '$allow_extra_keys = '.($arg ? 1:0)."; # from schema\n";
+}
+
+
+sub chkarg_attr_conflicting_keys {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              return unless $self->chkarg_r_array_of_str(@_);
+                              1;
+                          }
+                      );
+}
+
+sub handle_attr_conflicting_keys {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+    my $ds = $self->validator;
+
+    push @{ $ds->schema_pos }, -1;
+  A3:
+    for my $i (0..scalar(@$arg)-1) {
+        $ds->schema_pos->[-1] = $i;
+        my $group = $arg->[$i];
+        my @m;
+      G3:
+        for (@$group) {
+            push @m, $_ if exists($data->{$_});
+            if (@m > 1) {
+                $has_err++;
+                $ds->data_error("$m[0] conflicts with $m[1]");
+                last A3 if $ds->too_many_errors;
+                last G3;
+            }
+        }
+    }
+    pop @{ $ds->schema_pos };
+    !$has_err;
+}
+
+sub emitpl_attr_conflicting_keys {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
+
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl($arg).";\n";
+    $perl .= 'push @$schemapos, -1;'."\n";
+    $perl .= 'for my $i (0..scalar(@$arg)-1) {'."\n";
+    $perl .= '    $schemapos->[-1] = $i;'."\n";
+    $perl .= '    my $group = $arg->[$i];'."\n";
+    $perl .= '    my @m;'."\n";
+    $perl .= '    G3: for (@$group) {'."\n";
+    $perl .= '        push @m, $_ if exists($data->{$_});'."\n";
+    $perl .= '        if (@m > 1) {'."\n";
+    $perl .= '            '.$ds->emitpl_data_error('"$m[0] conflicts with $m[1]"', 1)."\n";
+    $perl .= '            last G3;'."\n";
+    $perl .= '        }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
+
+
+sub chkarg_attr_conflicting_keys_regex {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              return unless $self->chkarg_r_array_of_regex(@_);
+                              1;
+                          }
+                      );
+}
+
+sub handle_attr_conflicting_keys_regex {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+    my $ds = $self->validator;
+
+    push @{ $ds->schema_pos }, -1;
+  A4:
+    for my $i (0..scalar(@$arg)-1) {
+        $ds->schema_pos->[-1] = $i;
+        my $group = $arg->[$i];
+        my %m;
+      G4:
+        for my $re (@$group) {
+            for (keys %$data) {
+                $m{$re}++ if /$re/;
+                if (keys(%m) > 1) {
+                    $has_err++;
+                    $ds->data_error("Keys conflict: ".$self->_dump([keys %m]));
+                    last A4 if $ds->too_many_errors;
+                    last G4;
+                }
+            }
+        }
+    }
+    pop @{ $ds->schema_pos };
+    !$has_err;
+}
+
+sub emitpl_attr_conflicting_keys_regex {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
+
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl($arg).";\n";
+    $perl .= 'push @$schemapos, -1;'."\n";
+    $perl .= 'for my $i (0..scalar(@$arg)-1) {'."\n";
+    $perl .= '    $schemapos->[-1] = $i;'."\n";
+    $perl .= '    my $group = $arg->[$i];'."\n";
+    $perl .= '    my %m;'."\n";
+    $perl .= '    G4: for my $re (@$group) {'."\n";
+    $perl .= '        for (keys %$data) {'."\n";
+    $perl .= '            $m{$re}++ if /$re/;'."\n";
+    $perl .= '            if (keys(%m) > 1) {'."\n";
+    $perl .= '                '.$ds->emitpl_data_error('"Keys conflict: ".'.$self->_emitpl_dump('keys %m', 1), 1)."\n";
+    $perl .= '                last G4;'."\n";
+    $perl .= '            }'."\n";
+    $perl .= '        }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
+
+
+sub chkarg_attr_codependent_keys { chkarg_attr_conflicting_keys(@_) }
+
+sub handle_attr_codependent_keys {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+    my $ds = $self->validator;
+
+    push @{ $ds->schema_pos }, -1;
+  A1:
+    for my $i (0..scalar(@$arg)-1) {
+        $ds->schema_pos->[-1] = $i;
+        my $group = $arg->[$i];
+        my @m;
+        for (@$group) {
+            push @m, $_ if exists($data->{$_});
+        }
+        if (@m > 0 && @m < @$group) {
+            $has_err++;
+            $ds->data_error("keys ".$self->_dump($group)." must all exist or none exists");
+            last A1 if $ds->too_many_errors;
+        }
+    }
+    pop @{ $ds->schema_pos };
+    !$has_err;
+}
+
+sub emitpl_attr_codependent_keys {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
+
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl($arg).";\n";
+    $perl .= 'push @$schemapos, -1;'."\n";
+    $perl .= 'for my $i (0..scalar(@$arg)-1) {'."\n";
+    $perl .= '    $schemapos->[-1] = $i;'."\n";
+    $perl .= '    my $group = $arg->[$i];'."\n";
+    $perl .= '    my @m;'."\n";
+    $perl .= '    for (@$group) {'."\n";
+    $perl .= '        push @m, $_ if exists($data->{$_});'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '    if (@m > 0 && @m < @$group) {'."\n";
+    $perl .= '        '.$ds->emitpl_data_error('"keys ".'.$self->_emitpl_dump('$group', 1).'." must all exist or none exists"', 1)."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
+}
+
+
+sub chkarg_attr_codependent_keys_regex { chkarg_attr_conflicting_keys_regex(@_) }
+
+sub handle_attr_codependent_keys_regex {
+    my ($self, $data, $arg) = @_;
+    my $has_err = 0;
+    my $ds = $self->validator;
+
+    push @{ $ds->schema_pos }, -1;
+  A2:
+    for my $i (0..scalar(@$arg)-1) {
+        $ds->schema_pos->[-1] = $i;
+        my $group = $arg->[$i];
+        my %m;
+        for my $re (@$group) {
+            for (keys %$data) {
+                $m{$re}++ if /$re/;
+            }
+        }
+        if (keys(%m) > 0 && keys(%m) < @$group) {
+            $has_err++;
+            $ds->data_error("keys which match ".$self->_dump($group)." must all exist or none exists");
+            last A2 if $ds->too_many_errors;
+        }
+    }
+    pop @{ $ds->schema_pos };
+    !$has_err;
+}
+
+sub emitpl_attr_codependent_keys_regex {
+    my ($self, $arg) = @_;
+    my $ds = $self->validator;
+    my $perl = '';
+
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl($arg).";\n";
+    $perl .= 'push @$schemapos, -1;'."\n";
+    $perl .= 'for my $i (0..scalar(@$arg)-1) {'."\n";
+    $perl .= '    $schemapos->[-1] = $i;'."\n";
+    $perl .= '    my $group = $arg->[$i];'."\n";
+    $perl .= '    my %m;'."\n";
+    $perl .= '    for my $re (@$group) {'."\n";
+    $perl .= '        for (keys %$data) {'."\n";
+    $perl .= '            $m{$re}++ if /$re/;'."\n";
+    $perl .= '        }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '    if (keys(%m) > 0 && keys(%m) < @$group) {'."\n";
+    $perl .= '        '.$ds->emitpl_data_error('"keys which match ".'.$self->_emitpl_dump('$group', 1).'." must all exist or none exists"', 1)."\n";
+    $perl .= '    }'."\n";
+    $perl .= '}'."\n";
+    $perl .= 'pop @$schemapos;'."\n";
+    $perl;
 }
 
 sub short_english {
@@ -649,7 +957,7 @@ Data::Schema::Type::Hash - Type handler for hash ('hash')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -681,29 +989,29 @@ Example invalid data:
 
 =head1 TYPE ATTRIBUTES
 
-Hashes are Comparable and HasLength, so you might want to consult the docs of
+Hashes are Comparable and HasElement, so you might want to consult the docs of
 those roles to see what type attributes are available.
 
 Aside from those, hash also has these type attributes:
 
 =head2 keys_match => REGEX
 
-Require that all hash keys must match a regular expression.
-
 Aliases: C<allowed_keys_regex>
 
+Require that all hash keys match a regular expression.
+
 =head2 keys_not_match => REGEX
+
+Aliases: C<forbidden_keys_regex>
 
 This is the opposite of B<keys_match>, forbidding all hash keys from matching a
 regular expression.
 
-Aliases: C<forbidden_keys_regex>
-
 =head2 keys_one_of => [VALUE, ...]
 
-Specify that all hash keys must belong to a list of specified values.
+Aliases: allowed_keys
 
-Synonyms: allowed_keys
+Specify that all hash keys must belong to a list of specified values.
 
 For example (in YAML):
 
@@ -714,9 +1022,9 @@ required).
 
 =head2 values_one_of => [VALUE, ...]
 
-Specify that all hash values must belong to a list of specified values.
+Aliases: allowed_values
 
-Synonyms: allowed_values
+Specify that all hash values must belong to a list of specified values.
 
 For example (in YAML):
 
@@ -743,6 +1051,8 @@ key 'age' must be a positive integer.
 
 =head2 keys_of => SCHEMA
 
+Aliases: all_keys
+
 Specify a schema for all hash keys.
 
 For example (in YAML):
@@ -753,9 +1063,9 @@ This specifies that all hash keys must be ints.
 
 =head2 of => SCHEMA
 
-Specify a schema for all hash values.
+Aliases: all_values, values_of, all_elements, all_elems, all_elem
 
-Synonyms: values_of, all_elements, all_elems, all_elem
+Specify a schema for all hash values.
 
 For example (in YAML):
 
@@ -793,18 +1103,36 @@ This specifies that for all keys which contain a digit, the values must be int,
 while for all non-digit-containing keys, the values must be str. Example: {
 a=>"a", a1=>1, a2=>-3, b=>1 }. Note: b=>1 is valid because 1 is a valid str.
 
-=head2 values_match => REGEX
+This attribute also obeys allow_extra_hash_keys setting, like C<keys>.
 
-Specifies that all values must be scalar and match regular expression.
+Example:
+
+ my $sch = [hash=>{keys_regex=>{'^\w+$'=>[str=>{match=>'^\w+$'}]}}];
+
+ my $ds1 = Data::Schema->new(config=>{allow_extra_hash_keys=>1});
+ $ds1->validate({"contain space" => "contain space"}, $sch); # valid
+ my $ds2 = Data::Schema->new(); # default allow_extra_hash_keys is 0
+ $ds2->validate({"contain space" => "contain space"}, $sch); # invalid, no keys matches keys_regex
+
+=head2 values_match => REGEX
 
 Aliases: C<allowed_values_regex>
 
+Specifies that all values must be scalar and match regular expression.
+
 =head2 values_not_match => REGEX
+
+Aliases: C<forbidden_values_regex>
 
 The opposite of B<values_match>, requires that all values not match regular
 expression (but must be a scalar).
 
-Aliases: C<forbidden_values_regex>
+=head2 key_deps => SCHEMA
+
+Aliases: key_dep, element_deps, elem_deps, element_dep, elem_dep
+
+Specify inter-element dependency. See
+L<Data::Schema::Type::HasElement> for details.
 
 =head2 allow_extra_keys => BOOL
 
@@ -830,6 +1158,35 @@ YAML):
 
 Without allow_extra_keys, us_address will only allow key 'country' (due to
 'keys' limiting allowed hash keys to only those specified in it).
+
+=head2 conflicting_keys => [[A, B], [C, D, E], ...]
+
+State that A and B are conflicting keys and cannot exist together. And
+so are C, D, E.
+
+Example:
+
+ ds_validate({C=>1      }, [hash=>{conflicting_keys=>[["C", "D", "E"]]}]); # valid
+ ds_validate({C=>1, D=>1}, [hash=>{conflicting_keys=>[["C", "D", "E"]]}]); # invalid
+
+=head2 conflicting_keys_regex => [[REGEX_A, REGEX_B], [REGEX_C, REGEX_D, REGEX_E], ...]
+
+Just like C<conflicting_keys>, but keys are expressed using regular
+expression.
+
+=head2 codependent_keys => [[A, B], [C, D, E], ...]
+
+State that A and B are codependent keys and must exist together. And
+so are C, D, E.
+
+Example:
+
+ ds_validate({C=>1, D=>1      }, [hash=>{codependent_keys=>[["C", "D", "E"]]}]); # invalid
+ ds_validate({C=>1, D=>1, E=>1}, [hash=>{codependent_keys=>[["C", "D", "E"]]}]); # valid
+
+=head2 codependent_keys_regex => [[REGEX_A, REGEX_B], [REGEX_C, REGEX_D, REGEX_E], ...]
+
+Just like C<codependent_keys>, but keys are expressed using regular expression.
 
 =head1 AUTHOR
 

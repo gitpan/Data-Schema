@@ -1,24 +1,48 @@
 package Data::Schema;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Validate nested data structures with nested structure
 
 
 use Moose;
-use vars qw(@ISA @EXPORT);
-require Exporter;
-@ISA = qw(Exporter);
-@EXPORT = qw(ds_validate);
 use Data::Schema::Config;
 use Data::PrefixMerge;
 use Data::Schema::Type::Schema;
 use Digest::MD5 qw/md5_hex/;
 use Storable qw/freeze/;
+#use Data::Dumper; # debugging
 
-# don't blame me if you/someone else changes this
-$Storable::canonical = 1;
-$Storable::forgive_me = 1; # config can contain coderefs, e.g in gettext_function
+# for loading plugins/types on startup. see import()
+my %Default_Plugins = (); # package name => object
+my %Default_Types   = (
+    # XXX aliases should not create different handler object
+    str      => 'Str',
+    string   => 'Str',
+    cistr    => 'CIStr',
+    cistring => 'CIStr',
+    bool     => 'Bool',
+    boolean  => 'Bool',
+    hash     => 'Hash',
+    array    => 'Array',
+    object   => 'Object',
+    obj      => 'Object',
+    int      => 'Int',
+    integer  => 'Int',
+    float    => 'Float',
+    either   => 'Either',
+    or       => 'Either',
+    any      => 'Either',
+    all      => 'All',
+    and      => 'All',
+
+    typename => 'TypeName',
+);
+for (keys %Default_Types) { $Default_Types{$_} = "Data::Schema::Type::" . $Default_Types{$_} }
+
+my %Package_Default_Types; # importing package => ...
+my %Package_Default_Plugins; # importing package => ...
+my $Current_Call_Pkg;
 
 
 sub ds_validate {
@@ -27,38 +51,53 @@ sub ds_validate {
     $ds->validate($data);
 }
 
-my $Merger = new Data::PrefixMerge;
+our $Merger = new Data::PrefixMerge;
 $Merger->config->recurse_array(1);
 $Merger->config->preserve_keep_prefix(1);
+$Merger->config->hash_options_key('MERGE_OPTS');
 
 
 
 has plugins => (is => 'rw');
 has type_handlers => (is => 'rw');
-has compiled_subnames => (is => 'rw'); # for lexical visibility
+
+# we keep this hash for lexical visibility. although the sub might
+# already be defined, but at times should not be visible to the
+# schema.
+has compiled_subnames => (is => 'rw');
 
 
 has config => (is => 'rw');
 
 has validation_state_stack => (is => 'rw');
 
-# validation state
+# BEGIN validation state
 has schema => (is => 'rw');
 # has data_copy?
 has too_many_errors => (is => 'rw');
+has too_many_warnings => (is => 'rw');
 has errors => (is => 'rw');
+has warnings => (is => 'rw');
 has data_pos => (is => 'rw');
 has schema_pos => (is => 'rw');
 has stash => (is => 'rw'); # for storing stuffs during validation
+# END validation state
+
+has logs => (is => 'rw'); # for debugging
 
 has compilation_state_stack => (is => 'rw');
 
-# compilation state
-# stash
-has outer_stash => (is => 'rw'); # same as stash, but won't be reset during inner calls to _emit_perl
+# BEGIN compilation state
+# -- stash
+
+# -- same as stash, but won't be reset during inner calls to _emit_perl
+has outer_stash => (is => 'rw');
+# END compilation state
+
 
 
 sub BUILD {
+    #print "DEBUG: Creating new DS object\n";
     my ($self, $args) = @_;
 
     # config
@@ -79,28 +118,8 @@ sub BUILD {
         die "type_handlers must be a hashref" unless ref($args->{type_handlers}) eq 'HASH';
     } else {
         $self->type_handlers({});
-        my %defth = (
-            str     => 'Str',
-            cistr   => 'CIStr',
-            bool    => 'Bool',
-            hash    => 'Hash',
-            array   => 'Array',
-            object  => 'Object',
-            int     => 'Int',
-            float   => 'Float',
-            either  => 'Either',
-            all     => 'All',
-        );
-        # aliases (XXX should not create handler object for all the aliases)
-        $defth{string}   = $defth{str};
-        $defth{cistring} = $defth{cistr};
-        $defth{boolean}  = $defth{bool};
-        $defth{integer}  = $defth{int};
-        $defth{and}      = $defth{all};
-        $defth{or}       = $defth{either};
-        $defth{any}      = $defth{either};
-        $defth{obj}      = $defth{object};
-        $self->register_type($_, "Data::Schema::Type::$defth{$_}") for keys %defth;
+	my $deftypes = $Current_Call_Pkg && $Package_Default_Types{$Current_Call_Pkg} ? $Package_Default_Types{$Current_Call_Pkg} : \%Default_Types;
+        $self->register_type($_, $deftypes->{$_}) for keys %$deftypes;
     }
 
     # add default plugins
@@ -109,9 +128,9 @@ sub BUILD {
         die "plugins must be an arrayref" unless ref($self->plugins) eq 'ARRAY';
     } else {
         $self->plugins([]);
-        my @defpl = (
-        );
-        $self->register_plugin("Data::Schema::Plugin::$_") for @defpl;
+	my $defpl = $Current_Call_Pkg && $Package_Default_Plugins{$Current_Call_Pkg} ? $Package_Default_Plugins{$Current_Call_Pkg} : \%Default_Plugins;
+        #print Dumper $defpl;
+        $self->register_plugin($_) for keys %$defpl;
     }
 
     $self->validation_state_stack([])  unless $self->validation_state_stack;
@@ -123,6 +142,7 @@ sub BUILD {
 sub merge_attr_hashes {
     my ($self, $attr_hashes) = @_;
     my @merged;
+    #my $did_merging;
     my $res = {error=>''};
 
     my $i = -1;
@@ -131,6 +151,7 @@ sub merge_attr_hashes {
         my $has_merge_prefix = grep {/^[*+.!^-]/} keys %{ $attr_hashes->[$i] };
         if (!$has_merge_prefix) { push @merged, $attr_hashes->[$i]; next }
         my $mres = $Merger->merge($merged[-1], $attr_hashes->[$i]);
+        #$did_merging++;
         #print "DEBUG: prefix_merge $i (".Data::Schema::Type::Base::_dump({}, $merged[-1]).", ".
         #    Data::Schema::Type::Base::_dump({}, $attr_hashes->[$i])." = ".($mres->{success} ? Data::Schema::Type::Base::_dump({}, $mres->{result}) : "FAIL")."\n";
         if (!$mres->{success}) {
@@ -142,7 +163,7 @@ sub merge_attr_hashes {
     $res->{result} = \@merged unless $res->{error};
     $res->{success} = !$res->{error};
 
-    $Merger->remove_keep_prefixes(\@merged);
+    $Merger->remove_keep_prefixes(\@merged, 2);# if $did_merging;
 
     #print "DEBUG: merge_attr_hashes($self, ".Data::Schema::Type::Base::_dump({}, $attr_hashes).
     #    ") = ".($res->{success} ? Data::Schema::Type::Base::_dump({}, $res->{result}) : "FAIL")."\n";
@@ -154,7 +175,9 @@ sub init_validation_state {
     my ($self) = @_;
     $self->schema(undef);
     $self->errors([]);
+    $self->warnings([]);
     $self->too_many_errors(0);
+    $self->too_many_warnings(0);
     $self->data_pos([]);
     $self->schema_pos([]);
     $self->stash({});
@@ -166,7 +189,9 @@ sub save_validation_state {
     my $state = {
         schema => $self->schema,
         errors => $self->errors,
+        warnings => $self->warnings,
         too_many_errors => $self->too_many_errors,
+        too_many_warnings => $self->too_many_warnings,
         data_pos => $self->data_pos,
         schema_pos => $self->schema_pos,
         stash => $self->stash,
@@ -181,7 +206,9 @@ sub restore_validation_state {
     die "Can't restore validation state, stack is empty!" unless $state;
     $self->schema($state->{schema});
     $self->errors($state->{errors});
+    $self->warnings($state->{warnings});
     $self->too_many_errors($state->{too_many_errors});
+    $self->too_many_warnings($state->{too_many_warnings});
     $self->data_pos($state->{data_pos});
     $self->schema_pos($state->{schema_pos});
     $self->stash($state->{stash});
@@ -212,17 +239,6 @@ sub restore_compilation_state {
     $self->stash($state->{stash});
 }
 
-sub _log {
-    my ($self, $stack, $limit, $message, $too_many_msgs) = @_;
-    if (defined($limit) && $limit > 0) {
-        if (@$stack >= $limit) {
-            push @$stack, [[], [], $too_many_msgs];
-            return;
-        }
-    }
-    push @$stack, [[ @{$self->data_pos} ], [ @{$self->schema_pos} ], $message];
-}
-
 sub emitpl_my {
     my ($self, @varnames) = @_;
     join("", map { !$self->stash->{"C_var_$_"}++ ? "my $_;\n" : "" } @varnames);
@@ -230,18 +246,22 @@ sub emitpl_my {
 
 sub emitpl_require {
     my ($self, @modnames) = @_;
-    join("", map { !$self->stash->{"C_req_$_"}++ ? "require $_;\n" : "" } @modnames);
+    join("", map { !$self->outer_stash->{"C_req_$_"}++ ? "require $_;\n" : "" } @modnames);
 }
 
 
 sub data_error {
     my ($self, $message) = @_;
-    $self->too_many_errors(1) unless
-        $self->_log($self->errors, $self->config->max_errors, $message, "too many errors");
+    return if $self->too_many_errors;
+    do { $self->too_many_errors(1); $self->debug("Too many errors", 3); return } if
+	defined($self->config->max_errors) && $self->config->max_errors > 0 &&
+	@{ $self->errors } >= $self->config->max_errors;
+    push @{ $self->errors }, [[@{$self->data_pos}], [@{$self->schema_pos}], $message];
 }
 
 sub emitpl_data_error {
     my ($self, $msg, $is_literal) = @_;
+    my $perl;
 
     my $lit;
     if ($is_literal) {
@@ -250,15 +270,69 @@ sub emitpl_data_error {
         $msg =~ s/(['\\])/\\$1/g;
         $lit = "'$msg'";
     }
-    # we don't track schema pos because everything is assumed to be
-    # compiled to a black-box perl sub
-    'push @errors, [[@$datapos],[@$schemapos],'.$lit.']; if (@errors >= '.$self->config->max_errors.") { last L1 }";
+    $perl = 'push @errors, [[@$datapos],[@$schemapos],'.$lit.']; last L1 if @errors >= '.$self->config->max_errors.";";
+    if (defined($self->config->max_errors) && $self->config->max_errors > 0) {
+	$perl = 'if (@errors < '.$self->config->max_errors.') { '.$perl.' }';
+    }
+    $perl;
+}
+
+
+sub data_warn {
+    my ($self, $message) = @_;
+    return if $self->too_many_warnings;
+    do { $self->too_many_warnings(1); return } if
+	defined($self->config->max_warnings) && $self->config->max_warnings > 0 &&
+	@{ $self->warnings } >= $self->config->max_warnings;
+    push @{ $self->warnings }, [[@{$self->data_pos}], [@{$self->schema_pos}], $message];
+}
+
+sub emitpl_data_warn {
+    my ($self, $msg, $is_literal) = @_;
+    my $perl;
+
+    my $lit;
+    if ($is_literal) {
+        $lit = $msg;
+    } else {
+        $msg =~ s/(['\\])/\\$1/g;
+        $lit = "'$msg'";
+    }
+    $perl = 'push @warnings, [[@$datapos],[@$schemapos],'.$lit.']; ';
+    if (defined($self->config->max_warnings) && $self->config->max_warnings > 0) {
+    	$perl = 'if (@warnings < '.$self->config->max_warnings.') { '.$perl.'} ';
+    }
+    $perl;
+}
+
+
+sub debug {
+    my ($self, $message, $level) = @_;
+    $level //= 1; # XXX should've been: 1=FATAL, 2=ERROR, 3=WARN, 4=INFO, 5=DEBUG as usual
+    return unless $level <= $self->config->debug;
+    $message = $message->() if ref($message) eq 'CODE';
+    push @{ $self->logs }, [[@{$self->data_pos}], [@{$self->schema_pos}], $message];
+}
+
+sub emitpl_push_errwarn {
+    my ($self, $errorsvarname, $warningsvarname) = @_;
+    $errorsvarname //= 'suberrors';
+    $warningsvarname //= 'subwarnings';
+    my $perl1 = 'push @warnings, @$'.$warningsvarname.'; ';
+    if (defined($self->config->max_warnings) && $self->config->max_warnings > 0) {
+    	$perl1 = 'if (@warnings < '.$self->config->max_warnings.') { '.$perl1.'} ';
+    }
+    my $perl2 .= 'push @errors, @$'.$errorsvarname.'; last L1 if @errors >= '.$self->config->max_errors."; ";
+    if (defined($self->config->max_errors) && $self->config->max_errors > 0) {
+        $perl2 = 'if (@errors < '.$self->config->max_errors.') { '.$perl2.'} ';
+    }
+    $perl1 . $perl2;
 }
 
 
 sub schema_error {
     my ($self, $message) = @_;
-    die "Schema error during validation/compilation: $message";
+    die "Schema error: $message";
 }
 
 sub _pos_as_str {
@@ -271,7 +345,8 @@ sub _pos_as_str {
 
 sub check_type_name {
     my ($self, $name) = @_;
-    $name =~ /\A[a-z][a-z0-9_]{0,63}\z/;
+    $name =~ /\A[a-z_][a-z0-9_]{0,63}\z/;
+    # XXX synchronize with DST::TypeName
 }
 
 sub _load_type_handler {
@@ -342,7 +417,7 @@ sub get_type_handler {
     my ($self, $name) = @_;
     my $th;
     #print "DEBUG: Getting type handler for type $name ...\n";
-    #use Data::Dumper; print "DEBUG: Current type handlers: ", Data::Dumper->new([$self->type_handlers])->Indent(1)->Dump;
+    #print "DEBUG: Current type handlers: ", Data::Dumper->new([$self->type_handlers])->Indent(1)->Dump;
     if (!($th = $self->type_handlers->{$name})) {
         # let's give plugin a chance to do something about it and then try again
         if ($self->call_handler("unknown_type", $name) > 0) {
@@ -353,7 +428,7 @@ sub get_type_handler {
             $th = $self->_load_type_handler($name);
         }
     }
-    #use Data::Dumper; print "DEBUG: Type handler got: ".Dumper($th)."\n";
+    #print "DEBUG: Type handler got: ".Dumper($th)."\n";
     $th;
 }
 
@@ -468,22 +543,42 @@ sub validate {
 
     $self->init_validation_state();
     $self->init_compilation_state() if $self->config->compile;
+    $self->logs([]);
     $self->_validate($data, $schema);
     $self->schema($saved_schema);
 
     {success  => !@{$self->errors},
      errors   => [$self->errors_as_array],
+     warnings => [$self->warnings_as_array],
+     logs     => [$self->logs_as_array],
     };
 }
 
 
 sub errors_as_array {
     my ($self) = @_;
-    map { sprintf "data\@%s schema\@%s %s", $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]), $_->[2] } @{ $self->errors };
+    map { sprintf "%s (data\@%s schema\@%s)", $_->[2], $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]) } @{ $self->errors };
+}
+
+
+sub warnings_as_array {
+    my ($self) = @_;
+    map { sprintf "%s (data\@%s schema\@%s)", $_->[2], $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]) } @{ $self->warnings };
+}
+
+
+sub logs_as_array {
+    my ($self) = @_;
+    map { sprintf "%s (data\@%s schema\@%s)", $_->[2], $self->_pos_as_str($_->[0]), $self->_pos_as_str($_->[1]) } @{ $self->logs };
 }
 
 sub _schema2csubname {
     my ($self, $schema) = @_;
+
+    # avoid warning from Storable when trying to freeze coderef
+    local $self->config->{gettext_function} =
+	($self->config->{gettext_function} // "")."";
+
     my $n1 = defined($schema) ? (ref($schema) ? md5_hex(freeze($schema)) : $schema) : "";
     my $n2 = md5_hex(freeze($self->config));
     "__cs_${n1}_$n2";
@@ -568,6 +663,7 @@ sub _validate_or_emit_perl {
             last;
         }
         if ($compile || $action eq 'EMIT_PERL') {
+	    $self->outer_stash->{"C_def_$csubname"}++;
             my $code = $th->emit_perl($s->{attr_hashes}, $csubname);
             return $code if $action eq 'EMIT_PERL';
             if (!$code) {
@@ -584,6 +680,7 @@ sub _validate_or_emit_perl {
 		    die "Can't compile code: $eval_error";
 		}
 	    }
+	    #print "DEBUG: Compiled $csubname\n";
 	    $self->compiled_subnames->{$csubname} = 1;
         } else {
             $th->handle_type($data, $s->{attr_hashes});
@@ -600,8 +697,9 @@ sub _validate_or_emit_perl {
     # execute compiled code
     if ($compile) {
         no strict 'refs';
-	my ($errors) = "Data::Schema::__compiled::$csubname"->($data);
-	push @{ $self->errors }, @$errors;
+	my ($errors, $warnings) = "Data::Schema::__compiled::$csubname"->($data);
+	push @{ $self->errors   }, @$errors;
+	push @{ $self->warnings }, @$warnings;
     }
 }
 
@@ -631,17 +729,85 @@ sub emitpls_sub {
     my ($self, $schema) = @_;
 
     my $csubname = $self->_schema2csubname($schema);
+    #print "DEBUG: emitting $csubname\n";
     my $perl = '';
-    
-    unless ($Data::Schema::__compiled::{$csubname} ||
-	    $self->outer_stash->{"C_def_$csubname"}++) {
+
+    if ($Data::Schema::__compiled::{$csubname} ||
+	$self->outer_stash->{"C_def_$csubname"}++) {
+	#print "DEBUG: skipped emitting $csubname (already done)\n";
+    } else {
+	#print "DEBUG: marking $csubname in outer stash\n";
+	$self->outer_stash->{"C_def_$csubname"}++;
 	$self->save_compilation_state;
 	$perl = $self->emit_perl($schema, 1);
 	$self->restore_compilation_state;
 	die "Can't generate Perl code for schema" unless $perl;
-	$self->outer_stash->{"C_def_$csubname"}++;
     }
     ($perl, $csubname);
+}
+
+sub import {
+    my $pkg = shift;
+    $Current_Call_Pkg = caller(0);
+
+    no strict 'refs';
+
+    # default export
+    my @export = qw(ds_validate);
+    *{$Current_Call_Pkg."::$_"} = \&{$pkg."::$_"} for @export;
+
+    return if $Package_Default_Types{$Current_Call_Pkg};
+    my $dt = { %Default_Types };
+    my $dp = { %Default_Plugins };
+    for (@_) {
+        my $e = $_;
+	if (grep {$e eq $_} @export) {
+	} elsif ($e =~ /^Plugin::/) {
+            $e = "Data::Schema::" . $e;
+	    unless (grep {$_ eq $e} keys %$dp) {
+		eval "require $e"; die $@ if $@;
+		$dp->{$e} = $e->new();
+	    }
+	} elsif ($e =~ /^Type::/) {
+	    $e = "Data::Schema::" . $e;
+	    eval "require $e"; die $@ if $@;
+	    my $th = $e->new();
+	    my $names = ${$e."::DS_TYPE"};
+	    die "$e doesn't have \$DS_TYPE" unless $names;
+	    $names = [$names] unless ref($names) eq 'ARRAY';
+            for (@$names) {
+		if (!check_type_name(undef, $_)) {
+		    die "$e tries to define invalid type name: `$_`";
+		} elsif (exists $dt->{$_}) {
+		    die "$e tries to redefine existing type '$_' (handler: $dt->{$_})";
+		}
+		$dt->{$_} = $e;
+	    }
+	} elsif ($e =~ /^Schema::/) {
+	    $e = "Data::Schema::" . $e;
+	    eval "require $e"; die $@ if $@;
+	    my $schemas = ${$e."::DS_SCHEMAS"};
+	    die "$e doesn't have \$DS_SCHEMAS" unless $schemas;
+            for (keys %$schemas) {
+		if (!check_type_name(undef, $_)) {
+		    die "$e tries to define invalid type name: `$_`";
+		} elsif (exists $dt->{$_}) {
+		    die "$e tries to redefine existing type '$_' (handler: $dt->{$_})";
+		}
+	        my $nschema = normalize_schema(undef, $schemas->{$_});
+		if (ref($nschema) ne 'HASH') {
+		    die "Can't normalize schema in $e: $nschema";
+		}
+		require Data::Schema::Type::Schema;
+		$dt->{$_} = Data::Schema::Type::Schema->new(nschema=>$nschema, name=>$_);
+	    }
+	} else {
+	    die "Can't export $_! Can only export: ".join(@export, '/^{Plugin,Type,Schema}::.*/');
+	}
+    }
+    $Package_Default_Types{$Current_Call_Pkg} = $dt;
+    $Package_Default_Plugins{$Current_Call_Pkg} = $dp;
+    #print Dumper(\%Package_Default_Plugins);
 }
 
 
@@ -658,7 +824,7 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -765,6 +931,26 @@ parameters, command line arguments, etc.
 
 To get started, see L<Data::Schema::Manual::Tutorial>.
 
+=head1 IMPORTING
+
+When importing this module, you can pass a list of module names.
+
+ use Data::Schema qw(Plugin::Foo Type::Bar Schema::Baz ...);
+ my $ds = Data::Schema->new; # foo, bar, baz will be loaded by default
+
+This is a shortcut to the more verbose form:
+
+ use Data::Schema;
+ my $ds = Data::Schema->new;
+
+ $ds->register_plugin('Data::Schema::Plugin::Foo');
+
+ $ds->register_type('bar', 'Data::Schema::Type::Bar');
+
+ use Data::Schema::Schema::Baz;
+ $ds->register_schema_as_type($_, $Data::Schema::Schema::Baz::DS_SCHEMAS->{$_})
+    for keys %$Data::Schema::Schema::Baz::DS_SCHEMAS;
+
 =head1 FUNCTIONS
 
 =head2 ds_validate($data, $schema)
@@ -833,6 +1019,18 @@ See also: B<save_compilation_state()>.
 Add a data error when in validation process. Will not add if there are
 already too many errors (C<too_many_errors> attribute is true). Used
 by type handlers. As DS user, normally you wouldn't need this.
+
+=head2 data_warn($message)
+
+Add a data warning when in validation process. Will not add if there
+are already too many warnings (C<too_many_warnings> attribute is
+true). Used by type handlers. As DS user, normally you wouldn't need
+this.
+
+=head2 debug($message[, $level])
+
+Log debug messages. Used by type handlers when validating. As DS user,
+normally you wouldn't need this.
 
 =head2 schema_error($message)
 
@@ -931,13 +1129,21 @@ if the schema contains other types in it (hash form of schema can define types).
 Validate a data structure. $schema must be given unless you already give the
 schema via the B<schema> attribute.
 
-Returns {success=>0 or 1, errors=>[...]}. The 'success' key will be
-set to 1 if the data validates, otherwise 'errors' will be filled with
-the details.
+Returns {success=>0 or 1, errors=>[...], warnings=>[...]}. The
+'success' key will be set to 1 if the data validates, otherwise
+'errors' will be filled with the details.
 
 =head2 errors_as_array
 
 Return formatted errors in an array of strings.
+
+=head2 warnings_as_array
+
+Return formatted warnings in an array of strings.
+
+=head2 logs_as_array
+
+Return formatted logs in an array of strings.
 
 =head2 emit_perl([$schema])
 
@@ -982,25 +1188,32 @@ requirements. With DS you can just write:
 Another design consideration for DS is, I want to maximize reusability of my
 schemas. And thus DS allows you to define schemas in terms of other schemas.
 External schemas can be "require"-d from Perl variables or loaded from YAML
-files.
-
-DS is still in its early phase of development, but I am already starting to use
-it in production. I am quite content with the current syntax, but that doesn't
-mean it won't change in the future. DS can already do decent validation, there
-are already several basic types each with a decent set of attributes. But some
-"standard" stuffs present in other modules are still absent in DS: handling of
-default values and filters. These will be added in future releases along with
-other planned features like variable substitution, etc.
+files. Of course, you can also extend with Perl as usual (e.g. writing new
+types and new attributes).
 
 =head1 SEE ALSO
 
-L<Data::Schema::Manual::Tutorial>,
-L<Data::Schema::Manual::Schema>,
-L<Data::Schema::Manual::TypeHandler>,
+L<Data::Schema::Manual::Tutorial>
+
+L<Data::Schema::Manual::Schema>
+
+L<Data::Schema::Manual::TypeHandler>
+
 L<Data::Schema::Manual::Plugin>
 
 Some other data validation modules on CPAN: L<Data::FormValidator>, L<Data::Rx>,
 L<Kwalify>.
+
+L<Config::Tree> uses Data::Schema to check command-line options and
+makes it easy to generate --help/usage information.
+
+L<LUGS::Events::Parser> by Steven Schubiger is apparently one of the
+first modules (outside my own of course) which use Data::Schema.
+
+L<Data::Schema::Schema::> namespace is reserved for modules that
+contain DS schemas. For example, L<Data::Schema::Schema::CPANMeta>
+validates CPAN META.yml. L<Data::Schema::Schema::Schema> contains the
+schema for DS schema itself.
 
 =head1 BUGS
 

@@ -1,14 +1,57 @@
 Revision history for Data-Schema
 
+0.13    2009-11-25
+
+        - schema definition of DS schema (in DS::Schema::Schema)
+        
+	- new config: debug for debugging complex schemas
+        
+	- reintroduced warnings
+
+	- briefer syntax to import plugins, types, schema types: 'use
+	  Data::Schema qw(Plugin::Foo Type::Bar Schema::Baz);'
+          
+        - new type: typename
+
+        - new attributes. comment, note, default. for scalar types:
+          deps. for str: isa_regex. for array: elem_deps_regex. for
+          hash: key_deps_regex, conflicting_keys,
+          conflicting_keys_regex, codependent_keys,
+          codependent_keys_regex.
+
+        - added attribute aliases. for hash: all_values -> of,
+          all_keys -> keys_of. dep -> deps.
+
+        - new attribute suffixes. :comment, :note, :warn, :warnmsg.
+
+ 	- INCOMPATIBLE CHANGE: keys_regex now obeys
+           allow_extra_hash_keys setting, just like keys
+
+	- INCOMPATIBLE CHANGE: 'deps' for hash is renamed to
+          'key_deps' (or 'key_dep'). 'deps' also exists for hash,
+          but now taken from scalar
+
+	- INCOMPATIBLE CHANGE: 'deps' for array is renamed to
+          'element_deps' (or 'elem_dep'). 'deps' also exists for
+          array, but now taken from scalar
+          
+	- changed: 1st and 3rd argument to 'elem_deps'/'key_deps' 
+          now become regex instead of plain string
+          
+	- int's attribute 'divisible_by' and 'indivisible_by' also
+          accept array
+
+	- refactoring, bug fixes, added tests
+
 0.12    2009-11-20
         - new: DS now can compile schema to Perl code for much
           speedier validation
 	- INCOMPATIBLE CHANGE: required_keys_regex and required_keys
-          for hash used to require that is defined. now it
-          isn't. i.e.: ds_validate({a=>undef},
+          for hash used to require that value is defined. now they
+          don't. i.e.: ds_validate({a=>undef},
           [hash=>{required_keys=>['a']}]) used to fail, now
-          succeed. to require that value are defined, use
-          'required'=>1.
+          it will succeed. to require that value be defined, use
+          'required=>1' (or 'set=>1').
 	- INCOMPATIBLE CHANGE: hash's "of" attribute is now changed to
           mean (become an alias for) "values_of". The original "of"
           meaning is removed because it is easily misused/forgotten.

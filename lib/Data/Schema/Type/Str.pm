@@ -1,5 +1,5 @@
 package Data::Schema::Type::Str;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for string ('str')
@@ -10,7 +10,7 @@ extends 'Data::Schema::Type::Base';
 with
     'Data::Schema::Type::Comparable',
     'Data::Schema::Type::Sortable',
-    'Data::Schema::Type::HasElement' => { -excludes => ['handle_attr_deps', 'emitpl_attr_deps'] },
+    'Data::Schema::Type::HasElement',
     'Data::Schema::Type::Scalar';
 
 sub _equal {
@@ -89,6 +89,11 @@ sub emitpl_pre_check_attrs {
 }
 
 
+sub chkarg_attr_match {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_regex($arg, $name);
+}
+
 sub handle_attr_match {
     my ($self, $data, $arg) = @_;
     if (!$self->_rematch($data, $arg)) {
@@ -103,10 +108,10 @@ sub emitpl_attr_match {
     'if (!'.$self->_emitpl_rematch('$data', $arg).') { '.$self->validator->emitpl_data_error("must match regex $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_matches { handle_attr_match(@_) }
-sub emitpl_attr_matches { emitpl_attr_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(match => qw/matches/);
 
+
+sub chkarg_attr_not_match { chkarg_attr_match(@_) }
 
 sub handle_attr_not_match {
     my ($self, $data, $arg) = @_;
@@ -122,9 +127,33 @@ sub emitpl_attr_not_match {
     'if ('.$self->_emitpl_rematch('$data', $arg).') { '.$self->validator->emitpl_data_error("must match regex $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_not_matches { handle_attr_not_match(@_) }
-sub emitpl_attr_not_matches { emitpl_attr_not_match(@_) }
+Data::Schema::Type::Base::__make_attr_alias(not_match => qw/not_matches/);
+
+
+sub chkarg_attr_isa_regex {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_regex($arg, $name);
+}
+
+sub handle_attr_isa_regex {
+    my ($self, $data, $arg) = @_;
+    return 1 unless defined($arg);
+    eval { qr/$data/ };
+    unless ($@ xor $arg) {
+        $self->validator->data_error($arg ? "must be a valid regex" : "must not be a valid regex");
+	return 0;
+    }
+    1;
+}
+
+sub emitpl_attr_isa_regex {
+    my ($self, $arg) = @_;
+    my $perl = '';
+
+    return ' ' unless defined($arg);
+    $perl .= 'eval { qr/$data/ };'."\n";
+    'unless ($@ xor '.($arg ? 1:0).') { '.$self->validator->emitpl_data_error($arg ? "must be a valid regex" : "must not be a valid regex")." }\n";
+}
 
 sub short_english {
     "string";
@@ -147,7 +176,7 @@ Data::Schema::Type::Str - Type handler for string ('str')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -159,22 +188,34 @@ This is type handler for 'str'.
 
 =head1 TYPE ATTRIBUTES
 
-Strings are Comparable, Sortable, and HasLength, so you might want to consult
+Strings are Comparable, Sortable, and HasElement, so you might want to consult
 the docs of those roles to see what type attributes are available.
 
 In addition to these, string has some additional attributes:
 
 =head2 match => REGEX
 
-Require that the string match a regular expression.
+Aliases: matches
 
-Synonyms: matches
+Require that the string match a regular expression.
 
 =head2 not_match => REGEX
 
+Aliases: not_matches
+
 The opposite of B<match>, require that the string not match a regular expression.
 
-Synonyms: not_matches
+=head2 isa_regex => BOOL
+
+If value is true, require that the string be a valid regular
+expression string. If value is false, require that the string not be a
+valid regular expression string.
+
+Example:
+
+ ds_validate("(foo|bar)" => [str => {set=>1, isa_regex=>1}); # valid
+ ds_validate("(foo|bar"  => [str => {set=>1, isa_regex=>1}); # invalid, unmatched "(" in regex
+ ds_validate("(foo|bar"  => [str => {set=>1, isa_regex=>0}); # valid
 
 =head1 AUTHOR
 

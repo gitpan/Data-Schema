@@ -1,12 +1,9 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
-
-use lib './t';
-require 'testlib.pm';
-
+use Test::More tests => 190;
 use Data::Schema;
 
 valid(1, 'float', 'float 1');
@@ -22,6 +19,6 @@ valid(undef, 'float', 'undef');
 test_comparable('float', 1, -2.1, 3.1, -4.1);
 test_sortable('float', -4.1, 5.1, 10.1);
 
-test_scalar_deps('float', 1.1, {min=>1}, {min=>2});
+test_deps('float', 1.1, {min=>1}, {min=>2});
 
-done_testing();
+

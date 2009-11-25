@@ -1,5 +1,5 @@
 package Data::Schema::Type::Int;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for integer numbers ('int')
@@ -26,6 +26,17 @@ override emitpl_pre_check_attrs => sub {
 };
 
 
+sub chkarg_attr_mod {
+    my ($self, $arg, $name) = @_;
+    my $ds = $self->validator;
+    return unless $self->chkarg_r_array_of_int($arg, $name, 2, 2);
+    if ($arg->[0] == 0) {
+        $ds->schema_error("$name: illegal modulus zero");
+        return;
+    }
+    1;
+}
+
 sub handle_attr_mod {
     my ($self, $data, $args) = @_;
 
@@ -42,38 +53,82 @@ sub emitpl_attr_mod {
 }
 
 
+sub chkarg_attr_divisible_by {
+    my ($self, $arg, $name) = @_;
+    my $ds = $self->validator;
+    if (!ref($arg)) {
+        return unless $self->chkarg_r_int($arg, $name);
+        if ($arg == 0) {
+            $ds->schema_error("$name: illegal division by zero");
+            return;
+        }
+    } elsif (ref($arg) eq 'ARRAY') {
+        return unless $self->chkarg_r_array_of_int($arg, $name, 0, 0);
+        for (@$arg) {
+            if ($arg == 0) {
+                $ds->schema_error("$name/$_: illegal division by zero");
+                return;
+            }
+        }
+    } else {
+        $ds->schema_error("$name: must be int or array");
+        return;
+    }
+    1;
+}
+
 sub handle_attr_divisible_by {
     my ($self, $data, $args) = @_;
-    if ($data % $args) {
-        $self->validator->data_error("must be divisible by $args");
-        return;
+    my $list = ref($args) eq 'ARRAY' ? $args : [$args];
+    for (@$list) {
+        if ($data % $_) {
+            $self->validator->data_error("must be divisible by $_");
+            return;
+        }
     }
     1;
 }
 
 sub emitpl_attr_divisible_by {
     my ($self, $args) = @_;
-    'if ($data % '.$args.') { '.$self->validator->emitpl_data_error("must be divisible by $args")." }\n";
+    my $ds = $self->validator;
+    my $perl = '';
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl(ref($args) eq 'ARRAY' ? $args : [$args]).";\n";
+    $perl .= 'for (@$arg) {'."\n";
+    $perl .= '    if ($data % $_) { '.$self->validator->emitpl_data_error('"must be divisible by $_"', 1)." }\n";
+    $perl .= "}\n";
+    $perl;
 }
 
 
+sub chkarg_attr_not_divisible_by { chkarg_attr_divisible_by(@_) }
+
 sub handle_attr_not_divisible_by {
     my ($self, $data, $args) = @_;
-    if ($data % $args == 0) {
-        $self->validator->data_error("must not be divisible by $args");
-        return;
+    my $list = ref($args) eq 'ARRAY' ? $args : [$args];
+    for (@$list) {
+        if ($data % $_ == 0) {
+            $self->validator->data_error("must not be divisible by $_");
+            return;
+        }
     }
     1;
 }
 
 sub emitpl_attr_not_divisible_by {
     my ($self, $args) = @_;
-    'if ($data % '.$args.' == 0) { '.$self->validator->emitpl_data_error("must not be divisible by $args")." }\n";
+    my $ds = $self->validator;
+    my $perl = '';
+    $perl .= $ds->emitpl_my('$arg');
+    $perl .= '$arg = '.$self->_perl(ref($args) eq 'ARRAY' ? $args : [$args]).";\n";
+    $perl .= 'for (@$arg) {'."\n";
+    $perl .= '    if ($data % $_ == 0) { '.$self->validator->emitpl_data_error('"must be divisible by $_"', 1)." }\n";
+    $perl .= "}\n";
+    $perl;
 }
 
-# aliases
-sub handle_attr_indivisible_by { handle_attr_not_divisible_by(@_) }
-sub emitpl_attr_indivisible_by { emitpl_attr_not_divisible_by(@_) }
+Data::Schema::Type::Base::__make_attr_alias(not_divisible_by => qw/indivisible_by/);
 
 sub short_english {
     "int";
@@ -96,7 +151,7 @@ Data::Schema::Type::Int - Type handler for integer numbers ('int')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -117,15 +172,21 @@ In addition to those provided by Num, ints have additional attributes.
 Require that (data mod X) equals Y. For example, mod => [2, 1]
 effectively specifies odd numbers.
 
-=head2 divisible_by => X
+=head2 divisible_by => INT or ARRAY
 
-Require that (data mod X) equals 0.
+Require that data is divisible by all specified numbers.
 
-=head2 not_divisible_by => X
+Example:
 
-Require that (data mod X) not equals 0.
+ ds_validate( 4, [int=>{divisible_by=>2}]     ); # valid
+ ds_validate( 4, [int=>{divisible_by=>[2,3]}] ); # invalid
+ ds_validate( 6, [int=>{divisible_by=>[2,3]}] ); # valid
 
-Synonyms: indivisible_by
+=head2 not_divisible_by => INT or ARRAY
+
+Aliases: indivisible_by
+
+Opposite of divisible_by.
 
 =head1 AUTHOR
 

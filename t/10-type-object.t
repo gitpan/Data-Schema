@@ -1,12 +1,9 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
-
-use lib './t';
-require 'testlib.pm';
-
+use Test::More tests => 164;
 use Data::Schema;
 
 valid(undef, 'object', 'undef');
@@ -76,6 +73,6 @@ for (qw(not_isa)) { # 1x6=6
     invalid($d4, [object=>{$_=>[qw/C1 C2/]}], "$_ 6");
 }
 
-test_scalar_deps('object', $c1, {isa=>[qw/C1/]}, {isa=>[qw/D1/]});
+test_deps('object', $c1, {isa=>[qw/C1/]}, {isa=>[qw/D1/]});
 
-done_testing();
+

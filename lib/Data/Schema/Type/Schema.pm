@@ -1,5 +1,5 @@
 package Data::Schema::Type::Schema;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Make schema as type
@@ -27,15 +27,28 @@ sub handle_type {
                            attr_hashes=>[@{$s->{attr_hashes}}, @$attr_hashes],
                            def=>$s->{def}});
     my $errors = $ds->errors;
+    my $warnings = $ds->warnings;
     $ds->restore_validation_state();
 
-    # push errors
+    # push errors & warnings
     for (@$errors) {
-        if (@{ $ds->errors } >= $ds->config->max_errors) {
-            $ds->too_many_errors(1);
+        if (defined($ds->config->max_errors) && $ds->config->max_errors > 0 &&
+	    @{ $ds->errors } >= $ds->config->max_errors) {
+            push @{ $ds->errors }, [[], [], "too many errors"];
+	    $ds->too_many_errors(1);
             last;
         }
         push @{ $ds->errors },
+            [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
+    }
+    for (@$warnings) {
+        if (defined($ds->config->max_warnings) && $ds->config->max_warnings > 0 &&
+	    @{ $ds->warnings } >= $ds->config->max_warnings) {
+            push @{ $ds->warnings }, [[], [], "too many warnings"];
+	    $ds->too_many_warnings(1);
+            last;
+        }
+        push @{ $ds->warnings },
             [[@{$ds->data_pos}, @{$_->[0]}], [@{$ds->schema_pos}, @{$_->[1]}], $_->[2]];
     }
 
@@ -89,7 +102,7 @@ Data::Schema::Type::Schema - Make schema as type
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 

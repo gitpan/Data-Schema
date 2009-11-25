@@ -1,12 +1,12 @@
 package Data::Schema::Plugin::LoadSchema::YAMLFile;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Plugin to load schemas from YAML files
 
 use Moose;
 use File::Slurp;
-use YAML::XS;
+use YAML::Syck;
 
 extends 'Data::Schema::Plugin::LoadSchema::Base';
 
@@ -55,7 +55,7 @@ Data::Schema::Plugin::LoadSchema::YAMLFile - Plugin to load schemas from YAML fi
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 

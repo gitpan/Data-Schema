@@ -1,5 +1,5 @@
 package Data::Schema::Type::Array;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for arrays ('array')
@@ -7,7 +7,10 @@ our $VERSION = '0.12';
 
 use Moose;
 extends 'Data::Schema::Type::Base';
-with 'Data::Schema::Type::Comparable', 'Data::Schema::Type::HasElement';
+with 
+    'Data::Schema::Type::Comparable',
+    'Data::Schema::Type::Scalar', # for 'deps' only actually
+    'Data::Schema::Type::HasElement';
 use Storable qw/freeze/;
 use List::MoreUtils qw/uniq/;
 
@@ -75,6 +78,11 @@ sub emitpl_pre_check_attrs {
 }
 
 
+sub chkarg_attr_unique {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_bool($arg, $name);
+}
+
 sub handle_attr_unique {
     my ($self, $data, $arg) = @_;
     my $unique = !(@$data > uniq(@$data));
@@ -91,14 +99,14 @@ sub emitpl_attr_unique {
 }
 
 
+sub chkarg_attr_elements {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_schema($arg, $name);
+}
+
 sub handle_attr_elements {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
-
-    if (ref($arg) ne 'ARRAY') {
-        $self->validator->schema_error("`elements' attribute must be array");
-        return;
-    }
 
     push @{ $self->validator->data_pos   }, 0;
     push @{ $self->validator->schema_pos }, "";
@@ -120,8 +128,6 @@ sub emitpl_attr_elements {
     my $ds = $self->validator;
     my $perl = '';
 
-    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`elements' attribute must be array"); return }
-
     my @schemas;
     for my $i (0..@$arg-1) {
 	my ($code, $csubname) = $ds->emitpls_sub($arg->[$i]);
@@ -129,34 +135,40 @@ sub emitpl_attr_elements {
 	push @schemas, $csubname;
     }
 
-    $perl .= $self->validator->emitpl_my('@schemas');
+    $perl .= $ds->emitpl_my('@schemas');
     $perl .= '@schemas = ('.join(", ", map { "\\&$_" } @schemas).");\n";
     $perl .= 'push @$datapos, -1;'."\n";
     $perl .= 'push @$schemapos, "";'."\n";
     $perl .= 'for my $i (0..$#schemas) {'."\n";
     $perl .= '    $datapos  ->[-1] = $i;'."\n";
     $perl .= '    $schemapos->[-1] = $i;'."\n";
-    $perl .= '    my ($suberrors) = $schemas[$i]($data->[$i], $datapos, $schemapos);'."\n";
-    $perl .= '    push @errors, @$suberrors;'."\n";
-    $perl .= '    if (@errors > '.$self->validator->config->max_errors.') { last L1 }'."\n";
+    $perl .= '    my ($suberrors, $subwarnings) = $schemas[$i]($data->[$i], $datapos, $schemapos);'."\n";
+    $perl .= '    '.$ds->emitpl_push_errwarn();
     $perl .= "}\n";
     $perl .= 'pop @$datapos;'."\n";
     $perl .= 'pop @$schemapos;'."\n";
     $perl;
 }
 
-# aliases
-sub handle_attr_element { handle_attr_elements(@_) }
-sub emitpl_attr_element { emitpl_attr_elements(@_) }
-sub handle_attr_elems   { handle_attr_elements(@_) }
-sub emitpl_attr_elems   { emitpl_attr_elements(@_) }
-sub handle_attr_elem    { handle_attr_elements(@_) }
-sub emitpl_attr_elem    { emitpl_attr_elements(@_) }
+Data::Schema::Type::Base::__make_attr_alias(elements => qw/element elems elem/);
 
 
-sub handle_attr_of { handle_attr_all_elements(@_) }
-sub emitpl_attr_of { emitpl_attr_all_elements(@_) }
+Data::Schema::Type::Base::__make_attr_alias(all_elements => qw/of/);
 
+
+sub chkarg_attr_some_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              my ($arg, $name) = @_;
+                              return unless $self->chkarg_r_array($arg, $name, 3, 3);
+                              return unless $self->chkarg_r_schema($arg->[0], "$name/0");
+                              return unless $self->chkarg_r_int($arg->[1], "$name/1");
+                              return unless $self->chkarg_r_int($arg->[2], "$name/2");
+                              1;
+                          }
+                      );
+}
 
 sub handle_attr_some_of {
     my ($self, $data, $arg) = @_;
@@ -207,9 +219,6 @@ sub emitpl_attr_some_of {
     my $perl = '';
     my $ds = $self->validator;
 
-    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`some_of' attribute must be array"); return }
-    my $i=0; for (@$arg) { unless (ref($_) eq 'ARRAY' && @$_ == 3) { $ds->schema_error("`some_of'[$i] attribute must be 3-element array"); return } $i++ }
-
     my @arg;
     for my $i ((0..@$arg-1)) {
 	my $sch = $arg->[$i][0];
@@ -228,7 +237,7 @@ sub emitpl_attr_some_of {
     $perl .= '$j=0;'."\n";
     $perl .= 'for my $r (@arg) {'."\n";
     $perl .= '    for my $i (0..@$data-1) {'."\n";
-    $perl .= '        my ($suberrors) = $r->[0]($data->[$i]);'."\n";
+    $perl .= '        my ($suberrors, $subwarnings) = $r->[0]($data->[$i]);'."\n";
     $perl .= '        if (!@$suberrors) { $num_valid[$j]++ }'."\n";
     $perl .= '    }'."\n";
     $perl .= '    $j++;'."\n";
@@ -251,14 +260,23 @@ sub emitpl_attr_some_of {
 }
 
 
+sub chkarg_attr_elements_regex {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_hash($arg, $name, 0, 0,
+                         sub {
+                             my ($arg, $name) = @_;
+                             $self->chkarg_r_regex($arg, $name);
+                         },
+                         sub {
+                             my ($arg, $name) = @_;
+                             $self->chkarg_r_schema($arg, $name);
+                         },
+                     );
+}
+
 sub handle_attr_elements_regex {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
-
-    if (ref($arg) ne 'HASH') {
-        $self->validator->schema_error("`elements_regex' attribute must be hash");
-        return;
-    }
 
     push @{ $self->validator->data_pos }, 0;
     for my $i (0..@$data-1) {
@@ -283,8 +301,6 @@ sub emitpl_attr_elements_regex {
     my $perl = '';
     my $ds = $self->validator;
 
-    if (ref($arg) ne 'HASH') { $ds->schema_error("`elements_regex' attribute must be hash"); return }
-
     my @arg;
     for my $re (keys %$arg) {
 	my $sch = $arg->{$re};
@@ -293,7 +309,7 @@ sub emitpl_attr_elements_regex {
 	push @arg, [qr/$re/, $csubname];
     }
 
-    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= $ds->emitpl_my('@arg');
     $perl .= '@arg = ('.join(", ", map {"[".$self->_dump($_->[0]).", \\&$_->[1]]"} @arg).");\n";
 
     $perl .= 'push @$datapos, -1;'."\n";
@@ -303,8 +319,8 @@ sub emitpl_attr_elements_regex {
     $perl .= '    for my $r (@arg) {'."\n";
     $perl .= '        $schemapos->[-1] = $r->[0];'."\n";
     $perl .= '        next unless $i =~ qr/$r->[0]/;'."\n";
-    $perl .= '        my ($suberrors) = $r->[1]($data->[$i], $datapos, $schemapos);'."\n";
-    $perl .= '        push @errors, @$suberrors;'."\n";
+    $perl .= '        my ($suberrors, $subwarnings) = $r->[1]($data->[$i], $datapos, $schemapos);'."\n";
+    $perl .= '        '.$ds->emitpl_push_errwarn();
     $perl .= '    }'."\n";
     $perl .= '}'."\n";
     $perl .= 'pop @$datapos;'."\n";
@@ -312,13 +328,7 @@ sub emitpl_attr_elements_regex {
     $perl;
 }
 
-# aliases
-sub handle_attr_element_regex { handle_attr_elements_regex(@_) }
-sub emitpl_attr_element_regex { emitpl_attr_elements_regex(@_) }
-sub handle_attr_elems_regex   { handle_attr_elements_regex(@_) }
-sub emitpl_attr_elems_regex   { emitpl_attr_elements_regex(@_) }
-sub handle_attr_elem_regex    { handle_attr_elements_regex(@_) }
-sub emitpl_attr_elem_regex    { emitpl_attr_elements_regex(@_) }
+Data::Schema::Type::Base::__make_attr_alias(elements_regex => qw/element_regex elems_regex elem_regex/);
 
 sub short_english {
     "array";
@@ -356,7 +366,7 @@ Data::Schema::Type::Array - Type handler for arrays ('array')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -385,7 +395,7 @@ Example invalid data:
 
 =head1 TYPE ATTRIBUTES
 
-Arrays are Comparable and HasLength, so you can consult the docs for those
+Arrays are Comparable and HasElement, so you can consult the docs for those
 roles for available attributes. In addition to these, there are other attributes
 for 'array':
 
@@ -398,9 +408,9 @@ Note: currently the implementation uses List::MoreUtils' uniq().
 
 =head2 elements => [SCHEMA_FOR_FIRST_ELEMENT, SCHEMA_FOR_SECOND_ELEM, ...]
 
-Requires that each element of the array validates to the specified schemas.
+Aliases: element, elems, elem
 
-Synonyms: element, elems, elem
+Requires that each element of the array validates to the specified schemas.
 
 Example (in YAML):
 
@@ -411,9 +421,9 @@ string as the second, and positive integer as the third.
 
 =head2 of => SCHEMA
 
-Requires that every element of the array validates to the specified schema.
+Aliases: all_elements, all_elems, all_elem
 
-Synonyms: all_elements, all_elems, all_elem
+Requires that every element of the array validates to the specified schema.
 
 =head2 some_of => [[TYPE, MIN, MAX], [TYPE, MIN, MAX], ...]
 
@@ -429,11 +439,11 @@ strings, and at most one floating number.
 
 =head2 elements_regex => {REGEX=>SCHEMA, REGEX2=>SCHEMA2, ...]
 
+Aliases: element_regex, elems_regex, elem_regex
+
 Similar to B<elements>, but instead of specifying schema for each
 element, this attribute allows us to specify using regexes which elements we
 want to specify schema for.
-
-Synonyms: element_regex, elems_regex, elem_regex
 
 Example (in YAML):
 

@@ -1,5 +1,5 @@
 package Data::Schema::Type::Comparable;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Role for comparable types
@@ -9,6 +9,11 @@ use Moose::Role;
 with 'Data::Schema::Type::Printable';
 requires map { ("_$_", "_emitpl_$_") } qw/equal/;
 
+
+sub chkarg_attr_one_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_required($arg, $name);
+}
 
 sub handle_attr_one_of {
     my ($self, $data, $arg) = @_;
@@ -31,7 +36,6 @@ sub emitpl_attr_one_of {
     my ($self, $arg) = @_;
     my $perl = '';
 
-    $perl .= $self->_emitpl_def_dump;
     $perl .= $self->validator->emitpl_my('$arg', '$found');
     $perl .= '$arg = '.$self->_perl($arg).';'."\n";
     $perl .= '$found=0;'."\n";
@@ -48,10 +52,10 @@ sub emitpl_attr_one_of {
     $perl;
 }
 
-# aliases
-sub handle_attr_is_one_of { handle_attr_one_of(@_) }
-sub emitpl_attr_is_one_of { emitpl_attr_one_of(@_) }
+Data::Schema::Type::Base::__make_attr_alias(one_of => qw/is_one_of/);
 
+
+sub chkarg_attr_not_one_of { chkarg_attr_one_of(@_) }
 
 sub handle_attr_not_one_of {
     my ($self, $data, $arg) = @_;
@@ -76,7 +80,6 @@ sub emitpl_attr_not_one_of {
     my ($self, $arg) = @_;
     my $perl = '';
 
-    $perl .= $self->_emitpl_def_dump;
     $perl .= $self->validator->emitpl_my('$arg', '$found');
     $perl .= '$arg = '.$self->_perl($arg).';'."\n";
     $perl .= '$found=0;'."\n";
@@ -93,11 +96,13 @@ sub emitpl_attr_not_one_of {
     $perl;
 }
 
-# aliases
-sub handle_attr_isnt_one_of { handle_attr_not_one_of(@_) }
-sub emitpl_attr_isnt_one_of { emitpl_attr_not_one_of(@_) }
+Data::Schema::Type::Base::__make_attr_alias(not_one_of => qw/isnt_one_of/);
 
 
+sub chkarg_attr_is {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_required($arg, $name);
+}
 
 sub handle_attr_is {
     my ($self, $data, $arg) = @_;
@@ -110,7 +115,8 @@ sub emitpl_attr_is {
 }
 
 
-# convenience method for only a single invalid value
+sub chkarg_attr_isnt { chkarg_attr_is(@_) }
+
 sub handle_attr_isnt {
     my ($self, $data, $arg) = @_;
     $self->handle_attr_not_one_of($data, [$arg]);
@@ -121,9 +127,7 @@ sub emitpl_attr_isnt {
     $self->emitpl_attr_not_one_of([$arg]);
 }
 
-# aliases
-sub handle_attr_not { handle_attr_isnt(@_) }
-sub emitpl_attr_not { emitpl_attr_isnt(@_) }
+Data::Schema::Type::Base::__make_attr_alias(isnt => qw/not/);
 
 no Moose::Role;
 1;
@@ -137,7 +141,7 @@ Data::Schema::Type::Comparable - Role for comparable types
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -156,19 +160,15 @@ or 1 depending on whether the values are equal.
 
 =head2 one_of => [value1, ...]
 
-Require that the data is one of the specified choices.
+Aliases: is_one_of
 
-Synonyms: is_one_of
+Require that the data is one of the specified choices.
 
 =head2 not_one_of => [value1, ...]
 
+Aliases: isnt_one_of
+
 Require that the data is not listed in one of the specified "blacklists".
-
-Synonyms: isnt_one_of
-
-=head2 is => value
-
-A convenient attribute for B<one_of> when there is only one choice.
 
 =head2 is => value
 
@@ -176,10 +176,10 @@ A convenient attribute for B<one_of> when there is only one choice.
 
 =head2 isnt => value
 
+Aliases: not
+
 A convenient attribute for B<not_one_of> when there is only one item in the
 blacklist.
-
-Synonyms: not
 
 =head1 AUTHOR
 

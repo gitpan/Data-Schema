@@ -1,5 +1,5 @@
 package Data::Schema::Type::Scalar;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Role for scalar types
@@ -9,24 +9,27 @@ use Moose::Role;
 #requires ...
 
 
+sub chkarg_attr_deps {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              my ($arg, $name) = @_;
+                              return unless $self->chkarg_r_array($arg, $name, 2, 2);
+                              return unless $self->chkarg_r_schema($arg->[0], "$name/0");
+                              return unless $self->chkarg_r_schema($arg->[1], "$name/1");
+                              1;
+                          }
+                      );
+}
+
 sub handle_attr_deps {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
-
     my $ds = $self->validator;
-
-    if (ref($arg) ne 'ARRAY') {
-        $ds->schema_error("`deps' attribute must be arrayref");
-        return;
-    }
 
     push @{ $ds->schema_pos }, 0;
     for my $i (0..scalar(@$arg)-1) {
         $ds->schema_pos->[-1] = $i;
-        if (ref($arg->[$i]) ne 'ARRAY' || scalar(@{ $arg->[$i] }) != 2) {
-            $ds->schema_error("deps[$i] must be a 2-element array");
-            return;
-        }
         my ($schema1, $schema2) = @{ $arg->[$i] };
 
         $ds->save_validation_state();
@@ -50,9 +53,6 @@ sub emitpl_attr_deps {
     my $perl = '';
     my $ds = $self->validator;
 
-    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`deps' attribute must be arrayref"); return }
-    my $i=0; for (@$arg) { unless (ref($_) eq 'ARRAY' && @$_ == 2) { $ds->schema_error("`deps'[$i] attribute must be 2-element array"); return } $i++ }
-
     my @arg;
     for my $i (0..scalar(@$arg)-1) {
 	my ($code1, $csubname1) = $ds->emitpls_sub($arg->[$i][0]);
@@ -61,20 +61,22 @@ sub emitpl_attr_deps {
 	push @arg, [$csubname1, $csubname2];
     }
 
-    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= $ds->emitpl_my('@arg');
     $perl .= '@arg = ('.join(", ", map {"[\\&$_->[0], \\&$_->[1]]"} @arg).");\n";
     $perl .= 'push @$schemapos, -1;'."\n";
     $perl .= 'for my $i (0..scalar(@arg)-1) {'."\n";
     $perl .= '    $schemapos->[-1] = $i;'."\n";
     $perl .= '    my ($schema1, $schema2) = @{ $arg[$i] };'."\n";
-    $perl .= '    my ($suberrors1) = $schema1->($data);'."\n";
+    $perl .= '    my ($suberrors1, $subwarnings1) = $schema1->($data);'."\n";
     $perl .= '    next if @$suberrors1;'."\n";
-    $perl .= '    my ($suberrors2) = $schema2->($data, $datapos, $schemapos);'."\n";
-    $perl .= '    push @errors, @$suberrors2; last L1 if @errors >= '.$ds->config->max_errors."\n";
+    $perl .= '    my ($suberrors2, $subwarnings2) = $schema2->($data, $datapos, $schemapos);'."\n";
+    $perl .= '    '.$ds->emitpl_push_errwarn('suberrors2', 'subwarnings2');
     $perl .= "}\n";
     $perl .= 'pop @$schemapos;'."\n";
     $perl;
 }
+
+Data::Schema::Type::Base::__make_attr_alias(deps => qw/dep/);
 
 no Moose::Role;
 1;
@@ -88,7 +90,7 @@ Data::Schema::Type::Scalar - Role for scalar types
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -104,6 +106,8 @@ Role consumer is not required to provide any method.
 =head1 TYPE ATTRIBUTES
 
 =head2 deps => [[SCHEMA1, SCHEMA2], [SCHEMA1B, SCHEMA2B], ...]
+
+Aliases: dep
 
 If data matches SCHEMA1, then data must also match SCHEMA2.
 

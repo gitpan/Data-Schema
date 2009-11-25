@@ -11,7 +11,7 @@ Data::Schema::Manual::TypeHandler
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 OVERVIEW
 
@@ -82,10 +82,6 @@ To use your new type, register it via:
 or
 
  $validator->register_type($your_obj);
-
-=head1 AUTHOR
-
-=head1 COPYRIGHT & LICENSE
 
 =head1 AUTHOR
 

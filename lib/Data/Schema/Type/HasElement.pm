@@ -1,5 +1,5 @@
 package Data::Schema::Type::HasElement;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Role for types that have the notion of elements
@@ -8,6 +8,11 @@ our $VERSION = '0.12';
 use Moose::Role;
 requires map { ("_$_", "_emitpl_$_") } qw/length element indexes/;
 
+
+sub chkarg_attr_max_len {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_int($arg, $name);
+}
 
 sub handle_attr_max_len {
     my ($self, $data, $arg) = @_;
@@ -27,14 +32,10 @@ sub emitpl_attr_max_len {
     $perl;
 }
 
-# aliases
-sub handle_attr_maxlen     { handle_attr_max_len(@_) }
-sub emitpl_attr_maxlen     { emitpl_attr_max_len(@_) }
-sub handle_attr_maxlength  { handle_attr_max_len(@_) }
-sub emitpl_attr_maxlength  { emitpl_attr_max_len(@_) }
-sub handle_attr_max_length { handle_attr_max_len(@_) }
-sub emitpl_attr_max_length { emitpl_attr_max_len(@_) }
+Data::Schema::Type::Base::__make_attr_alias(max_len => qw/maxlen maxlength max_length/);
 
+
+sub chkarg_attr_min_len { chkarg_attr_max_len(@_) }
 
 sub handle_attr_min_len {
     my ($self, $data, $arg) = @_;
@@ -54,14 +55,13 @@ sub emitpl_attr_min_len {
     $perl;
 }
 
-# aliases
-sub handle_attr_minlen     { handle_attr_min_len(@_) }
-sub emitpl_attr_minlen     { emitpl_attr_min_len(@_) }
-sub handle_attr_min_length { handle_attr_min_len(@_) }
-sub emitpl_attr_min_length { emitpl_attr_min_len(@_) }
-sub handle_attr_minlength  { handle_attr_min_len(@_) }
-sub emitpl_attr_minlength  { emitpl_attr_min_len(@_) }
+Data::Schema::Type::Base::__make_attr_alias(min_len => qw/minlen min_length minlength/);
 
+
+sub chkarg_attr_len_between {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_int($arg, $name, 2, 2);
+}
 
 sub handle_attr_len_between {
     my ($self, $data, $arg) = @_;
@@ -82,10 +82,10 @@ sub emitpl_attr_len_between {
     $perl;
 }
 
-# aliases
-sub handle_attr_length_between { handle_attr_len_between(@_) }
-sub emitpl_attr_length_between { emitpl_attr_len_between(@_) }
+Data::Schema::Type::Base::__make_attr_alias(len_between => qw/length_between/);
 
+
+sub chkarg_attr_len { chkarg_attr_max_len(@_) }
 
 sub handle_attr_len {
     my ($self, $data, $arg) = @_;
@@ -105,10 +105,13 @@ sub emitpl_attr_len {
     $perl;
 }
 
-# aliases
-sub handle_attr_length { handle_attr_len(@_) }
-sub emitpl_attr_length { emitpl_attr_len(@_) }
+Data::Schema::Type::Base::__make_attr_alias(len => qw/length/);
 
+
+sub chkarg_attr_all_elements {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_schema($arg, $name);
+}
 
 sub handle_attr_all_elements {
     my ($self, $data, $arg) = @_;
@@ -134,27 +137,20 @@ sub emitpl_attr_all_elements {
 
     my ($code, $csubname) = $ds->emitpls_sub($arg);
     $perl .= $code;
-    
-    $perl .= $self->validator->emitpl_my('@indexes');
+
+    $perl .= $ds->emitpl_my('@indexes');
     $perl .= '@indexes = '.$self->_emitpl_indexes('$data').";\n";
     $perl .= 'push @$datapos, $indexes[0];'."\n";
     $perl .= 'for my $i (@indexes) {'."\n";
     $perl .= '    $datapos->[-1] = $i;'."\n";
-    $perl .= '    my ($suberrors) = '.$csubname.'('.$self->_emitpl_element('$data', '$i', 1).', $datapos, $schemapos);'."\n";
-    $perl .= '    push @errors, @$suberrors;'."\n";
-    $perl .= '    if (@errors > '.$ds->config->max_errors.') { last L1 }'."\n";
+    $perl .= '    my ($suberrors, $subwarnings) = '.$csubname.'('.$self->_emitpl_element('$data', '$i', 1).', $datapos, $schemapos);'."\n";
+    $perl .= '    '.$ds->emitpl_push_errwarn();
     $perl .= "}\n";
     $perl .= 'pop @$datapos;'."\n";
     $perl;
 }
 
-# aliases
-sub handle_attr_all_element { handle_attr_all_elements(@_) }
-sub emitpl_attr_all_element { emitpl_attr_all_elements(@_) }
-sub handle_attr_all_elems   { handle_attr_all_elements(@_) }
-sub emitpl_attr_all_elems   { emitpl_attr_all_elements(@_) }
-sub handle_attr_all_elem    { handle_attr_all_elements(@_) }
-sub emitpl_attr_all_elem    { emitpl_attr_all_elements(@_) }
+Data::Schema::Type::Base::__make_attr_alias(all_elements => qw/all_element all_elems all_elem/);
 
 sub _for_each_element {
     my ($self, $data, $arg, $checkfail_sub) = @_;
@@ -197,53 +193,67 @@ sub _emitpl_for_each_element {
 }
 
 
-sub handle_attr_deps {
+sub chkarg_attr_element_deps {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array($arg, $name, 0, 0,
+                          sub {
+                              my ($arg, $name) = @_;
+                              return unless $self->chkarg_r_array($arg, $name, 4, 4);
+                              return unless $self->chkarg_r_regex($arg->[0], "$name/0");
+                              return unless $self->chkarg_r_schema($arg->[1], "$name/1");
+                              return unless $self->chkarg_r_regex($arg->[2], "$name/2");
+                              return unless $self->chkarg_r_schema($arg->[3], "$name/3");
+                              1;
+                          }
+                      );
+}
+
+sub handle_attr_element_deps {
     my ($self, $data, $arg) = @_;
     my $has_err = 0;
 
     my $ds = $self->validator;
 
-    if (ref($arg) ne 'ARRAY') {
-        $ds->schema_error("`deps' attribute must be arrayref");
-        return;
-    }
-
     push @{ $ds->schema_pos }, 0;
     for my $i (0..scalar(@$arg)-1) {
         $ds->schema_pos->[-1] = $i;
-        if (ref($arg->[$i]) ne 'ARRAY' || scalar(@{ $arg->[$i] }) != 4) {
-            $ds->schema_error("deps[$i] must be a 4-element array");
-            return;
-        }
-        my ($idx1, $schema1, $idx2, $schema2) = @{ $arg->[$i] };
-        my $elem1 = $self->_element($data, $idx1);
-        my $elem2 = $self->_element($data, $idx2);
+        my ($re1, $schema1, $re2, $schema2) = @{ $arg->[$i] };
 
         $ds->save_validation_state();
-        $ds->init_validation_state();
-        $ds->_validate($elem1, $schema1);
-        my $match1 = !@{ $ds->errors };
+	$ds->init_validation_state();
+	my $match1 = 1;
+        for my $k ($self->_indexes($data)) {
+	    next unless $k =~ qr/$re1/;
+	    my $elem = $self->_element($data, $k);
+	    $ds->_validate($elem, $schema1);
+	    if (@{ $ds->errors }) { $match1 = 0; last }
+	}
 	$ds->restore_validation_state();
         if ($match1) {
-            push @{ $ds->data_pos }, $idx2;
+	    $ds->debug("left-side regex matches", 4) if $match1;
+	    my $match2 = 1;
 	    my $pos_before = @{ $ds->errors };
-	    $ds->_validate($elem2, $schema2);
+            push @{ $ds->data_pos }, '';
+	    for my $k ($self->_indexes($data)) {
+		next unless $k =~ qr/$re2/;
+		$ds->data_pos->[-1] = $k;
+		my $elem = $self->_element($data, $k);
+		$ds->_validate($elem, $schema2);
+		do { $has_err++; $match2 = 0 } if @{ $ds->errors } != $pos_before;
+		$ds->debug("right-side doesn't match (idx=$k)!", 4) unless $match2;
+		last if $ds->too_many_errors;
+	    }
 	    pop @{ $ds->data_pos };
-            my $match2 = $pos_before == @{ $ds->errors };
-	    if (!$match2) { $has_err++; last if $ds->too_many_errors }
         }
     }
     pop @{ $ds->schema_pos };
     !$has_err;
 }
 
-sub emitpl_attr_deps {
+sub emitpl_attr_element_deps {
     my ($self, $arg) = @_;
     my $perl = '';
     my $ds = $self->validator;
-
-    if (ref($arg) ne 'ARRAY') { $ds->schema_error("`deps' attribute must be arrayref"); return }
-    my $i=0; for (@$arg) { unless (ref($_) eq 'ARRAY' && @$_ == 4) { $ds->schema_error("`deps'[$i] attribute must be 4-element array"); return } $i++ }
 
     my @arg;
     for my $i (0..scalar(@$arg)-1) {
@@ -253,25 +263,36 @@ sub emitpl_attr_deps {
 	push @arg, [$arg->[$i][0], $csubname1, $arg->[$i][2], $csubname2];
     }
 
-    $perl .= $self->validator->emitpl_my('@arg');
+    $perl .= $ds->emitpl_my('@arg');
     $perl .= '@arg = ('.join(", ", map {"[".$self->_perl($_->[0]).", \\&$_->[1], ".$self->_perl($_->[2]).", \\&$_->[3]]"} @arg).");\n";
-    $perl .= 'push @$datapos, -1;'."\n";
     $perl .= 'push @$schemapos, -1;'."\n";
     $perl .= 'for my $i (0..scalar(@arg)-1) {'."\n";
-    $perl .= '    my ($idx1, $schema1, $idx2, $schema2) = @{ $arg[$i] };'."\n";
-    $perl .= '    $datapos->[-1] = $idx2;'."\n";
     $perl .= '    $schemapos->[-1] = $i;'."\n";
-    $perl .= '    my $elem1 = '.$self->_emitpl_element('$data', '$idx1', 1).";\n";
-    $perl .= '    my $elem2 = '.$self->_emitpl_element('$data', '$idx2', 1).";\n";
-    $perl .= '    my ($suberrors1) = $schema1->($elem1);'."\n";
-    $perl .= '    next if @$suberrors1;'."\n";
-    $perl .= '    my ($suberrors2) = $schema2->($elem2, $datapos, $schemapos);'."\n";
-    $perl .= '    push @errors, @$suberrors2; last L1 if @errors >= '.$ds->config->max_errors."\n";
+    $perl .= '    my ($re1, $schema1, $re2, $schema2) = @{ $arg[$i] };'."\n";
+    $perl .= '    my $match1 = 1;'."\n";
+    $perl .= '    for my $k ('.$self->_emitpl_indexes('$data', 1).") {\n";
+    $perl .= '        next unless $k =~ qr/$re1/;'."\n";
+    $perl .= '        my $elem = '.$self->_emitpl_element('$data', '$k', 1).";\n";
+    $perl .= '        my ($suberrors1, $subwarnings1) = $schema1->($elem);'."\n";
+    $perl .= '        if (@$suberrors1) { $match1 = 0; last }'."\n";
+    $perl .= '    }'."\n";
+    $perl .= '    next unless $match1;'."\n";
+    $perl .= '    my $match2 = 1;'."\n";
+    $perl .= '    push @$datapos, "";'."\n";
+    $perl .= '    for my $k ('.$self->_emitpl_indexes('$data', 1).") {\n";
+    $perl .= '        next unless $k =~ qr/$re2/;'."\n";
+    $perl .= '        $datapos->[-1] = $k;'."\n";
+    $perl .= '        my $elem = '.$self->_emitpl_element('$data', '$k', 1).";\n";
+    $perl .= '        my ($suberrors2, $subwarnings2) = $schema2->($elem, $datapos, $schemapos);'."\n";
+    $perl .= '        '.$ds->emitpl_push_errwarn('suberrors2', 'subwarnings2');
+    $perl .= "    }\n";
+    $perl .= '    pop @$datapos;'."\n";
     $perl .= "}\n";
-    $perl .= 'pop @$datapos;'."\n";
     $perl .= 'pop @$schemapos;'."\n";
     $perl;
 }
+
+Data::Schema::Type::Base::__make_attr_alias(element_deps => qw/element_dep elem_deps elem_dep/);
 
 no Moose::Role;
 1;
@@ -285,7 +306,7 @@ Data::Schema::Type::HasElement - Role for types that have the notion of elements
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -309,33 +330,33 @@ Role consumer must provide methods:
 
 =head2 max_len => LEN
 
-Requires that the data have at most LEN elements.
+Aliases: maxlen, max_length, maxlength
 
-Synonyms: maxlen, max_length, maxlength
+Requires that the data have at most LEN elements.
 
 =head2 min_len => LEN
 
-Requires that the data have at least LEN elements.
+Aliases: minlen, min_length, minlength
 
-Synonyms: minlen, min_length, minlength
+Requires that the data have at least LEN elements.
 
 =head2 len_between => [MIN, MAX]
 
-A convenience attribute that combines B<minlen> and B<maxlen>.
+Aliases: length_between
 
-Synonyms: length_between
+A convenience attribute that combines B<minlen> and B<maxlen>.
 
 =head2 len => LEN
 
-Requires that the data have exactly LEN elements.
+Aliases: length
 
-Synonyms: length
+Requires that the data have exactly LEN elements.
 
 =head2 all_elements => SCHEMA
 
-Requires that every element of the data validate to the specified schema.
+Aliases: all_element, all_elems, all_elem
 
-Synonyms: all_element, all_elems, all_elem
+Requires that every element of the data validate to the specified schema.
 
 Examples (in YAML):
 
@@ -347,38 +368,46 @@ The above specifies an array of ints.
 
 The above specifies hash with alphanumeric-only values.
 
-=head2 deps => [[ELEMIDX1 => SCHEMA1, ELEMIDX2 => SCHEMA2], ...]
+=head2 element_deps => [[REGEX1 => SCHEMA1, REGEX1 => SCHEMA2], ...]
 
-Specify inter-element dependencies. If element at ELEMIDX1 matches SCHEMA1,
-then element at ELEMIDX2 must match SCHEMA2.
+Aliases: element_dep, elem_deps, elem_dep
+
+Specify inter-element dependencies. If all elements at indexes which
+match REGEX1 match SCHEMA1, then all elements at indexes which match
+REGEX2 must match SCHEMA2.
 
 Examples (in YAML):
 
  - hash
- - deps: [[ password, [str, {set: 1}], password_confirmation, [str, {set: 1}] ]]
+ - elem_deps: [[ password, [str, {set: 1}], password_confirmation, [str, {set: 1}] ]]
 
 The above says: key 'password_confirmation' is required if 'password' is set.
 
  - hash
- - deps: [[ province, [str, {set: 1, is: 'Outside US'}],
-            zipcode,  [str, {set: 0}] ],
-          [ province, [str, {set: 1, not: 'Outside US'}],
-            zipcode,  [str, {set: 1}] ]
-         ]
+ - elem_deps: [[ province, [str, {set: 1, is: 'Outside US'}],
+                 zipcode,  [str, {set: 0}] ],
+               [ province, [str, {set: 1, not: 'Outside US'}],
+                 zipcode,  [str, {set: 1}] ]
+              ]
 
 The above says: if province is set to 'Outside US', then zipcode must not be
 specified. Otherwise if province is set to US states, zipcode is required.
 
-TODO: a simpler syntax for common cases like: A is required if B if specified,
-e.g. instead of:
+ - array
+ - elem_deps:
+     - ['^0$',   [str, {set: 1, one_of: [int, integer]}], 
+        '[1-9]', [hash, {set: 1, allowed_keys: [is, not, min, max]}]]
+     - ['^0$',   [str, {set: 1, one_of: [str, string ]}], 
+        '[1-9]', [hash, {set: 1, allowed_keys: [is, not, min, max, minlen, maxlen]}]]
+     - ['^0$',   [str, {set: 1, one_of: [bool        ]}], 
+        '[1-9]', [hash, {set: 1, allowed_keys: [is, not]}]]
 
- deps: [[ B, [int, {set: 1}], A, [int, {set: 1}] ]]
+The above says: if first element of array is int/integer, then the
+following elements must be hash with. And so on if first element is
+str/string, or bool.
 
-we can perhaps say:
-
- required_deps: [B => A]
-
-TODO: dependencies between elements of different array/hash.
+Note: You need to be careful with undef, because it matches all schema
+unless set=>1/required=>1 is specified.
 
 =head1 AUTHOR
 

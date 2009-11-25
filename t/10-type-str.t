@@ -1,13 +1,10 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
-
+use Test::More tests => 360;
 use Data::Schema;
-
-use lib './t';
-require 'testlib.pm';
 
 valid('', 'str', 'basic 1');
 valid(' ', 'str', 'basic 2');
@@ -34,6 +31,14 @@ for (qw(match matches)) {
 valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
 invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
 
+# isa_regex
+for (qw(isa_regex)) {
+    valid  ('(foo|bar)', [str => {$_=>1    }], "$_ 1");
+    invalid('(foo|bar ', [str => {$_=>1    }], "$_ 2");
+    invalid('(foo|bar)', [str => {$_=>0    }], "$_ 3");
+    valid  ('(foo|bar ', [str => {$_=>0    }], "$_ 4");
+}
+
 test_comparable('str', 'a', 'b', 'A', 'B');
 
 test_sortable('str', 'a', 'b', 'c');
@@ -50,6 +55,6 @@ valid  ('A', [cistr => {one_of=>[qw/A/]}], "cistr:one_of 4");
 invalid('b', [cistr => {one_of=>[qw/a/]}], "cistr:one_of 5");
 test_sortable('cistr', 'a', 'B', 'c');
 
-test_scalar_deps('str', 'abc', {minlen=>1}, {maxlen=>2});
+test_deps('str', 'abc', {minlen=>1}, {maxlen=>2});
 
-done_testing();
+

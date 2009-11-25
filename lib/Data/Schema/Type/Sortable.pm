@@ -1,5 +1,5 @@
 package Data::Schema::Type::Sortable;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Role for sortable types
@@ -9,6 +9,11 @@ use Moose::Role;
 with 'Data::Schema::Type::Printable';
 requires map { ("_$_", "_emitpl_$_") } qw/compare/;
 
+
+sub chkarg_attr_min {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_required($arg, $name);
+}
 
 sub handle_attr_min {
     my ($self, $data, $arg) = @_;
@@ -24,10 +29,10 @@ sub emitpl_attr_min {
     'if ('.$self->_emitpl_compare('$data', $self->_perl($arg)).' < 0) { '.$self->validator->emitpl_data_error("value too small, min is $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_ge { handle_attr_min(@_) }
-sub emitpl_attr_ge { emitpl_attr_min(@_) }
+Data::Schema::Type::Base::__make_attr_alias(min => qw/ge/);
 
+
+sub chkarg_attr_minex { chkarg_attr_min(@_) }
 
 sub handle_attr_minex {
     my ($self, $data, $arg) = @_;
@@ -43,10 +48,10 @@ sub emitpl_attr_minex {
     'if ('.$self->_emitpl_compare('$data', $self->_perl($arg)).' <= 0) { '.$self->validator->emitpl_data_error("value must be greater than $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_gt { handle_attr_minex(@_) }
-sub emitpl_attr_gt { emitpl_attr_minex(@_) }
+Data::Schema::Type::Base::__make_attr_alias(minex => qw/gt/);
 
+
+sub chkarg_attr_max { chkarg_attr_min(@_) }
 
 sub handle_attr_max {
     my ($self, $data, $arg) = @_;
@@ -62,10 +67,10 @@ sub emitpl_attr_max {
     'if ('.$self->_emitpl_compare('$data', $self->_perl($arg)).' > 0) { '.$self->validator->emitpl_data_error("value too large, max is $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_le { handle_attr_max(@_) }
-sub emitpl_attr_le { emitpl_attr_max(@_) }
+Data::Schema::Type::Base::__make_attr_alias(max => qw/le/);
 
+
+sub chkarg_attr_maxex { chkarg_attr_min(@_) }
 
 sub handle_attr_maxex {
     my ($self, $data, $arg) = @_;
@@ -81,10 +86,13 @@ sub emitpl_attr_maxex {
     'if ('.$self->_emitpl_compare('$data', $self->_perl($arg)).' >= 0) { '.$self->validator->emitpl_data_error("value must be less than $arg")." }\n";
 }
 
-# aliases
-sub handle_attr_lt { handle_attr_maxex(@_) }
-sub emitpl_attr_lt { emitpl_attr_maxex(@_) }
+Data::Schema::Type::Base::__make_attr_alias(maxex => qw/lt/);
 
+
+sub chkarg_attr_between {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_required($arg, $name, 2, 2);
+}
 
 sub handle_attr_between {
     my ($self, $data, $arg) = @_;
@@ -110,7 +118,7 @@ Data::Schema::Type::Sortable - Role for sortable types
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -129,27 +137,27 @@ Role consumer must provide method '_compare' which takes two values and returns
 
 =head2 min => MIN
 
-Require that the value is not less than some specified minimum.
+Aliases: ge
 
-Synonyms: ge
+Require that the value is not less than some specified minimum.
 
 =head2 minex => MIN
 
-Require that the value is not less or equal than some specified minimum.
+Aliases: gt
 
-Synonyms: gt
+Require that the value is not less or equal than some specified minimum.
 
 =head2 max => MAX
 
-Require that the value is less or equal than some specified maximum.
+Aliases: le
 
-Synonyms: le
+Require that the value is less or equal than some specified maximum.
 
 =head2 maxex => MAX
 
-Require that the value is less than some specified maximum.
+Aliases: lt
 
-Synonyms: lt
+Require that the value is less than some specified maximum.
 
 =head2 between => [MIN, MAX]
 

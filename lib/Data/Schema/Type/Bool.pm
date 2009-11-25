@@ -1,5 +1,5 @@
 package Data::Schema::Type::Bool;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for booleans ('bool')
@@ -41,6 +41,21 @@ override _emitpl_dump => sub {
     "(($val) ? 'true' : 'false')";
 };
 
+sub handle_pre_check_attrs {
+    my ($self, $data) = @_;
+    if (ref($data)) {
+        $self->validator->data_error("data must be scalar");
+        return;
+    }
+    1;
+}
+
+sub emitpl_pre_check_attrs {
+    my ($self) = @_;
+    'if (ref($data)) { '.$self->validator->emitpl_data_error("data must be scalar").'; pop @$schemapos; last L1 }'."\n";
+}
+
+
 sub short_english {
     "bool";
 }
@@ -48,7 +63,6 @@ sub short_english {
 sub english {
     "bool";
 }
-
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
@@ -63,7 +77,7 @@ Data::Schema::Type::Bool - Type handler for booleans ('bool')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -71,9 +85,9 @@ version 0.12
 
 =head1 DESCRIPTION
 
-This is the type handler for type 'bool'.
+Aliases: boolean
 
-Synonyms: boolean
+This is the type handler for type 'bool'.
 
 =head1 TYPE ATTRIBUTES
 

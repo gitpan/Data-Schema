@@ -1,13 +1,10 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
-
+use Test::More tests => 630;
 use Data::Schema;
-
-use lib './t';
-require 'testlib.pm';
 
 valid([], 'array', 'basic 1');
 valid([1, 2], 'array', 'basic 2');
@@ -87,9 +84,11 @@ valid  ([1, 3, 2], [array=>{unique=>1}], 'unique 2');
 valid  ([1, 1, 2], [array=>{unique=>0}], 'unique 3');
 invalid([1, 3, 2], [array=>{unique=>0}], 'unique 4');
 
-for (qw(deps)) {
+test_deps('array', [0.1, 2.3], {of=>"float"}, {of=>"int"});
+
+for (qw(element_deps element_dep elem_deps elem_dep)) {
     my $sch;
-    # second totally dependant on first
+    # second totally dependent on first
     $sch = [array=>{$_ => [[0=>[int=>{set=>1}], 1=>[int=>{set=>1}]],
                            [0=>[int=>{set=>0}], 1=>[int=>{set=>0}]] ]}];
     valid  ([],            $sch, "$_ 1.1");
@@ -105,7 +104,7 @@ for (qw(deps)) {
     # mutually exclusive
     $sch = [array=>{$_ => [[0=>[int=>{set=>1}], 1=>[int=>{set=>0}]],
                            [0=>[int=>{set=>0}], 1=>[int=>{set=>1}]] ]}];
-    invalid([],            $sch, "$_ 2.1");
+    valid  ([],            $sch, "$_ 2.1");
     invalid([undef,undef], $sch, "$_ 2.2");
     valid  ([1,undef],     $sch, "$_ 2.3");
     valid  ([undef,1],     $sch, "$_ 2.4");
@@ -116,11 +115,33 @@ for (qw(deps)) {
     valid  (["a","a"],     $sch, "$_ 2.8");
 
     $sch = [array=>{$_ => [ [0=>"int", 1=>[str=>{minlen=>2, match=>"[A-Z]"}]] ]}];
-    my ($rnc, $rc) = test_validate([0, "a"], $sch);
-    is((scalar @{ $rnc->{errors} }), 2, "$_ passthru schema2 errors");
-    is((scalar @{ $rc ->{errors} }), 2, "$_ passthru schema2 errors (compiled)");
+    invalid([0, "a"], 
+	    $sch, 
+	    "$_ passthru schema2 errors", 
+	    undef, 
+	    sub {
+	      my ($res, $test_name, $ds) = @_;
+	      is((scalar @{ $res->{errors} }), 2, "$test_name 2");
+	    }
+	   );
+    # regex
+    $sch = [array=>{ $_ => [['.*', [int=>{min=>1}], '.*', [int=>{min=>2}]]] }];
+    valid  ([    ], $sch, "$_ regex 1a");
 
-    # TODO: errmsg on deps
+    # -- all matches left
+    invalid([1   ], $sch, "$_ regex 1b");
+    valid  ([2   ], $sch, "$_ regex 1c");
+    invalid([1,1 ], $sch, "$_ regex 1d");
+    invalid([1,2 ], $sch, "$_ regex 1e");
+    valid  ([2,2 ], $sch, "$_ regex 1f");
+
+    # -- some matches left, doesn't matter because ALL on the left must match
+    valid  ([0, 1], $sch, "$_ regex 1g");
+    valid  ([0, 2], $sch, "$_ regex 1h");
+
+    # -- none matches left, doesn't matter
+    valid  ([0   ], $sch, "$_ regex 1i");
+    valid  ([0,-1], $sch, "$_ regex 1j");
 }
 
-done_testing();
+

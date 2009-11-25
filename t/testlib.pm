@@ -5,6 +5,8 @@ use warnings;
 use Carp::Always;
 use Scalar::Util qw/tainted/;
 
+my $TEST_COMPILED = 1;
+
 $Data::Dumper::Indent = 0;
 $Data::Dumper::Terse = 1;
 $Data::Dumper::Sortkeys = 1;
@@ -13,11 +15,15 @@ $Data::Dumper::Purity = 0;
 my $Default_DS_NoCompile;
 my $Default_DS_Compile;
 
-# test validation on 2 variant: compiled and uncompiled
-sub test_validate($$;$) {
-    my ($data, $schema, $ds_user) = @_;
+sub _init_default_ds {
     if (!$Default_DS_NoCompile) { $Default_DS_NoCompile = Data::Schema->new(config=>{compile=>0}) }
     if (!$Default_DS_Compile  ) { $Default_DS_Compile   = Data::Schema->new(config=>{compile=>1}) }
+}
+
+# test validation on 2 variant: compiled and uncompiled
+sub test_validate($$$$$) {
+    my ($data, $schema, $test_name, $ds_user, $sub) = @_;
+    _init_default_ds();
     my ($ds_compile, $ds_nocompile);
     if ($ds_user) {
 	if ($ds_user->config->compile) {
@@ -38,26 +44,38 @@ sub test_validate($$;$) {
     #print "\$ds_nocompile tainted? ", tainted($ds_nocompile), "\n";
     #print "\$ds_compile tainted? ", tainted($ds_compile), "\n";
     my $res_nocompile = $ds_nocompile->validate($data, $schema);
-    my $res_compile   = $ds_compile  ->validate($data, $schema);
-    #print "result: ".Dumper($res_nocompile)."\n";
-    #print "result (compiled): ".Dumper($res_compile)."\n";
-    ($res_nocompile, $res_compile);
+    $sub->($res_nocompile, $test_name, $ds_nocompile);
+    #print "DEBUG: result: ".Dumper($res_nocompile)."\n";
+
+    if ($TEST_COMPILED) {
+        my $res_compile = $ds_compile->validate($data, $schema);
+        $sub->($res_compile, "$test_name (compiled)", $ds_compile);
+        #print "DEBUG: result (compiled): ".Dumper($res_compile)."\n";
+    } else {
+        $sub->($res_nocompile, "$test_name (ALSO NOT COMPILED)", $ds_nocompile);
+    }
 }
 
-sub valid($$$;$) {
-    my ($data, $schema, $test_name, $ds) = @_;
+sub valid($$$;$$) {
+    my ($data, $schema, $test_name, $ds, $sub) = @_;
     #print "valid(".Dumper($data).", ".Dumper($schema).", '$test_name', ".($ds // "undef").")\n";
-    my ($res_nocompile, $res_compile) = test_validate($data, $schema, $ds);
-    ok($res_nocompile && $res_nocompile->{success}, $test_name);
-    ok($res_compile   && $res_compile->{success}  , "$test_name (compiled)");
+    test_validate($data, $schema, $test_name, $ds,
+		  sub {
+		      my ($res, $test_name, $ds) = @_;
+		      ok($res && $res->{success}, $test_name);
+		      if ($sub) { $sub->(@_) }
+		  });
 }
 
-sub invalid($$$;$) {
-    my ($data, $schema, $test_name, $ds) = @_;
+sub invalid($$$;$$) {
+    my ($data, $schema, $test_name, $ds, $sub) = @_;
     #print "invalid(".Dumper($data).", ".Dumper($schema).", '$test_name', ".($ds // "undef").")\n";
-    my ($res_nocompile, $res_compile) = test_validate($data, $schema, $ds);
-    ok($res_nocompile && !$res_nocompile->{success}, $test_name);
-    ok($res_compile   && !$res_compile->{success}  , "$test_name (compiled)");
+    test_validate($data, $schema, $test_name, $ds,
+		  sub {
+		      my ($res, $test_name, $ds) = @_;
+		      ok($res && !$res->{success}, $test_name);
+		      if ($sub) { $sub->(@_) }
+		  });
 }
 
 sub test_comparable($$$$$;$) {
@@ -144,41 +162,45 @@ sub test_len($$$$;$) {
 
 sub english($;$) {
     my ($schema, $ds) = @_;
-    $ds ||= Data::Schema->new;
+    _init_default_ds();
+    $ds ||= $Default_DS_NoCompile;
     $schema = $ds->normalize_schema($schema) unless ref($schema) eq 'HASH';
     $ds->get_type_handler($schema->{type})->english($schema);
 }
 
 sub test_english($$$;$) {
     my ($schema, $english, $test_name, $ds) = @_;
-    $ds ||= Data::Schema->new;
     is(english($schema, $ds), $english, $test_name);
 }
 
-sub test_scalar_deps($$$) {
+# attrhash1 validates $data, but attrhash2 doesn't
+sub test_deps($$$) {
     my ($type, $data, $attrhash1, $attrhash2) = @_;
-    # 1dep, match
-    valid  ($data, [$type => {deps=>[[ $type, $type ]]}], "$type:deps 1");
-    valid  ($data, [$type => {deps=>[[ $type, [$type=>$attrhash1] ]]}], "$type:deps 2");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], $type ]]}], "$type:deps 3");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ]]}], "$type:deps 4");
-    invalid($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ]]}], "$type:deps 5");
 
-    # 1dep, not match, right-side schema don't matter
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash2], $type ]]}], "$type:deps 6");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:deps 7");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:deps 8");
+    for (qw(deps dep)) {
+	# 1dep, match
+	valid  ($data, [$type => {$_=>[[ $type, $type ]]}], "$type:$_ 1");
+	valid  ($data, [$type => {$_=>[[ $type, [$type=>$attrhash1] ]]}], "$type:$_ 2");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], $type ]]}], "$type:$_ 3");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ]]}], "$type:$_ 4");
+	invalid($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ]]}], "$type:$_ 5");
 
-    # 2dep, 1 match, 1 not match (right-side schema don't matter for second dep)
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], $type ]]}], "$type:deps 9a");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:deps 9b");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:deps 9c");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], $type ]]}], "$type:deps 10a");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:deps 10b");
-    valid  ($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:deps 10c");
-    invalid($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], $type ]]}], "$type:deps 11a");
-    invalid($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:deps 11b");
-    invalid($data, [$type => {deps=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:deps 11c");
+	# 1dep, not match, right-side schema don't matter
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash2], $type ]]}], "$type:$_ 6");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:$_ 7");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:$_ 8");
+
+	# 2dep, 1 match, 1 not match (right-side schema don't matter for second dep)
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], $type ]]}], "$type:$_ 9a");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:$_ 9b");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], $type ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:$_ 9c");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], $type ]]}], "$type:$_ 10a");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:$_ 10b");
+	valid  ($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash1] ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:$_ 10c");
+	invalid($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], $type ]]}], "$type:$_ 11a");
+	invalid($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], [$type=>$attrhash1] ]]}], "$type:$_ 11b");
+	invalid($data, [$type => {$_=>[[ [$type=>$attrhash1], [$type=>$attrhash2] ], [ [$type=>$attrhash2], [$type=>$attrhash2] ]]}], "$type:$_ 11c");
+    }
 }
 
 1;

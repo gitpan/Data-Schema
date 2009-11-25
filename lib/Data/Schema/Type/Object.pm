@@ -1,5 +1,5 @@
 package Data::Schema::Type::Object;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for Perl objects ('object')
@@ -29,6 +29,11 @@ sub emitpl_pre_check_attrs {
 }
 
 
+sub chkarg_attr_can_one {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_str_or_array_of_str($arg, $name);
+}
+
 sub handle_attr_can_one {
     my ($self, $data, $arg) = @_;
     my $methods = ref($arg) eq 'ARRAY' ? $arg : [$arg];
@@ -53,6 +58,8 @@ sub emitpl_attr_can_one {
 }
 
 
+sub chkarg_attr_can_all { chkarg_attr_can_one(@_) }
+
 sub handle_attr_can_all {
     my ($self, $data, $arg, $is_can) = @_;
     my $methods = ref($arg) eq 'ARRAY' ? $arg : [$arg];
@@ -76,10 +83,10 @@ sub emitpl_attr_can_all {
     $perl;
 }
 
-# aliases
-sub handle_attr_can { handle_attr_can_all(@_) }
-sub emitpl_attr_can { emitpl_attr_can_all(@_) }
+Data::Schema::Type::Base::__make_attr_alias(can_all => qw/can/);
 
+
+sub chkarg_attr_cannot { chkarg_attr_can_one(@_) }
 
 sub handle_attr_cannot {
     my ($self, $data, $arg, $is_can) = @_;
@@ -104,9 +111,13 @@ sub emitpl_attr_cannot {
     $perl;
 }
 
-sub handle_attr_cant { handle_attr_cannot(@_) }
-sub emitpl_attr_cant { emitpl_attr_cannot(@_) }
+Data::Schema::Type::Base::__make_attr_alias(cannot => qw/cant/);
 
+
+sub chkarg_attr_isa_one {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_str_or_array_of_str($arg, $name);
+}
 
 sub handle_attr_isa_one {
     my ($self, $data, $arg) = @_;
@@ -132,6 +143,8 @@ sub emitpl_attr_isa_one {
 }
 
 
+sub chkarg_attr_isa_all { chkarg_attr_isa_one(@_) }
+
 sub handle_attr_isa_all {
     my ($self, $data, $arg) = @_;
     my $classes = ref($arg) eq 'ARRAY' ? $arg : [$arg];
@@ -155,10 +168,10 @@ sub emitpl_attr_isa_all {
     $perl;
 }
 
-# aliases
-sub handle_attr_isa { handle_attr_isa_all(@_) }
-sub emitpl_attr_isa { emitpl_attr_isa_all(@_) }
+Data::Schema::Type::Base::__make_attr_alias(isa_all => qw/isa/);
 
+
+sub chkarg_attr_not_isa { chkarg_attr_isa_one(@_) }
 
 sub handle_attr_not_isa {
     my ($self, $data, $arg) = @_;
@@ -205,7 +218,7 @@ Data::Schema::Type::Object - Type handler for Perl objects ('object')
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 
@@ -213,9 +226,9 @@ version 0.12
 
 =head1 DESCRIPTION
 
-You can validate Perl objects with this type handler.
+Aliases: obj
 
-Synonym: obj
+You can validate Perl objects with this type handler.
 
 Example schema (in YAML syntax):
 
@@ -243,17 +256,17 @@ methods.
 
 =head2 can_all => (meth OR [meth, ...])
 
+Aliases: can
+
 Requires that the object be able (UNIVERSAL::can) to do all of the specified
 methods.
 
-Synonyms: can
-
 =head2 cannot  => (meth OR [meth, ...])
+
+Aliases: cant
 
 Requires that the object not be able (UNIVERSAL::can) to do any of the specified
 methods.
-
-Synonyms: cant
 
 =head2 isa_one => (class OR [class, ...])
 
@@ -262,9 +275,9 @@ classes.
 
 =head2 isa_all => (class OR [class, ...])
 
-Requires that the object be of (UNIVERSAL::isa) all of the specified classes.
+Aliases: isa
 
-Synonyms: isa
+Requires that the object be of (UNIVERSAL::isa) all of the specified classes.
 
 =head2 not_isa => (class OR [class, ...])
 

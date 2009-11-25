@@ -1,6 +1,6 @@
 use strict;
 use warnings;
-use Test::More tests => 18;
+use Test::More tests => 19;
 
 # Ensure a recent version of Test::Pod::Coverage
 my $min_tpc = 1.08;
@@ -23,8 +23,8 @@ pod_coverage_ok("${DS}", { also_private => [ qr/^(BUILD|emitpl_.+|emitpls_.+)$/ 
 
 # XXX DST::Base
 
-for (qw(Array Bool Float Int Hash Schema Str Either All Object Printable Comparable Sortable HasElement Scalar)) {
-    pod_coverage_ok("${DST}::$_", { also_private => [ qr/^(handle_.*|emit_perl|emitpl_.*|sort_attr_hash_keys|cmp|english|short_english|BUILD)$/ ], }, "${DST}::$_");
+for (qw(Array Bool Float Int Hash Schema Str Either All Object Printable Comparable Sortable HasElement Scalar TypeName)) {
+    pod_coverage_ok("${DST}::$_", { also_private => [ qr/^(handle_.*|emit_perl|emitpl_.*|chkarg_.*|sort_attr_hash_keys|cmp|english|short_english|BUILD)$/ ], }, "${DST}::$_");
 }
 
 # XXX DSP::LoadSchema::Base

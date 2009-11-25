@@ -11,7 +11,7 @@ Data::Schema::Manual::Tutorial
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 OVERVIEW
 
@@ -307,10 +307,6 @@ For now, please see the B<t/schemas/> directory in the distribution.
 L<Data::Schema::Manual::Schema>,
 L<Data::Schema::Manual::TypeHandler>,
 L<Data::Schema::Manual::Plugin>
-
-=head1 AUTHOR
-
-=head1 COPYRIGHT & LICENSE
 
 =head1 AUTHOR
 

@@ -1,20 +1,17 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
-
-use lib './t';
-require 'testlib.pm';
-
+use Test::More tests => 104;
 use Data::Schema;
 
 valid(1, 'bool', 'bool 1');
 valid("true", 'bool', 'bool 2');
 valid(0, 'bool', 'bool 3');
 valid("", 'bool', 'bool 4');
-valid([], 'bool', 'bool 5');
-valid({}, 'bool', 'bool 6');
+invalid([], 'bool', 'bool 5');
+invalid({}, 'bool', 'bool 6');
 
 valid(1, 'boolean', 'alias 1');
 
@@ -33,6 +30,6 @@ invalid('', [bool => {min=>'true'}], 'min 2');
 valid('', [bool => {max=>''}], 'max 1');
 invalid(1, [bool => {max=>''}], 'max 2');
 
-test_scalar_deps('str', 0, {is=>0}, {is=>1});
+test_deps('bool', 0, {is=>0}, {is=>1});
 
-done_testing();
+

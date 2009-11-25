@@ -1,5 +1,5 @@
 package Data::Schema::Type::All;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 
 # ABSTRACT: Type handler for 'all' type
@@ -10,14 +10,13 @@ extends 'Data::Schema::Type::Base';
 with 'Data::Schema::Type::Scalar';
 
 
+sub chkarg_attr_of {
+    my ($self, $arg, $name) = @_;
+    $self->chkarg_r_array_of_schema($arg, $name);
+}
+
 sub handle_attr_of {
     my ($self, $data, $arg) = @_;
-
-    unless (ref($arg) eq 'ARRAY' && @$arg) {
-        $self->validator->schema_error("arg of `of` must be array with elements");
-        return;
-    }
-
     my $ds = $self->validator;
 
     my $has_err;
@@ -41,11 +40,6 @@ sub emitpl_attr_of {
     my $ds = $self->validator;
     my $perl = '';
 
-    unless (ref($arg) eq 'ARRAY' && @$arg) {
-        $ds->schema_error("arg of `of` must be array with elements");
-        return;
-    }
-
     my @schemas;
     for my $i (0..@$arg-1) {
 	my ($code, $csubname) = $ds->emitpls_sub($arg->[$i]);
@@ -56,7 +50,7 @@ sub emitpl_attr_of {
     $perl .= $ds->emitpl_my('@schemas');
     $perl .= '@schemas = ('.join(", ", map { "\\&$_" } @schemas).");\n";
     $perl .= 'for my $i (0..@schemas-1) {'."\n";
-    $perl .= '    my ($suberrors) = $schemas[$i]($data);'."\n";
+    $perl .= '    my ($suberrors, $subwarnings) = $schemas[$i]($data);'."\n";
     $perl .= '    if (@$suberrors) { '.$ds->emitpl_data_error('"data does not validate to schema#$i"', 1)." }\n";
     $perl .= "}\n";
     $perl;
@@ -102,7 +96,7 @@ Data::Schema::Type::All - Type handler for 'all' type
 
 =head1 VERSION
 
-version 0.12
+version 0.13
 
 =head1 SYNOPSIS
 

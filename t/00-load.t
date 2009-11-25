@@ -1,6 +1,6 @@
 #!perl -T
 
-use Test::More tests => 20;
+use Test::More tests => 22;
 
 BEGIN {
 	use_ok( 'Data::Schema' );
@@ -20,6 +20,9 @@ BEGIN {
 	use_ok( 'Data::Schema::Type::Either' );
 	use_ok( 'Data::Schema::Type::All' );
 	use_ok( 'Data::Schema::Type::Object' );
+	use_ok( 'Data::Schema::Type::TypeName' );
+	#use_ok( 'Data::Schema::Type::DateTime' );
+	#use_ok( 'Data::Schema::Type::Duration' );
 
         use_ok( 'Data::Schema::Type::Printable' );
 	use_ok( 'Data::Schema::Type::Comparable' );
@@ -27,9 +30,12 @@ BEGIN {
 	use_ok( 'Data::Schema::Type::HasElement' );
 	use_ok( 'Data::Schema::Type::Scalar' );
 
+        use_ok( 'Data::Schema::Schema::Schema' );
+
 	#use_ok( 'Data::Schema::Plugin::LoadSchema::Base' );
 	use_ok( 'Data::Schema::Plugin::LoadSchema::Hash' );
 	use_ok( 'Data::Schema::Plugin::LoadSchema::YAMLFile' );
 }
 
 diag( "Testing Data::Schema $Data::Schema::VERSION, Perl $], $^X" );
+

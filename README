@@ -2,7 +2,7 @@ NAME
     Data::Schema - Validate nested data structures with nested structure
 
 VERSION
-    version 0.12
+    version 0.13
 
 SYNOPSIS
         # OO interface
@@ -108,6 +108,25 @@ DESCRIPTION
 
     To get started, see Data::Schema::Manual::Tutorial.
 
+IMPORTING
+    When importing this module, you can pass a list of module names.
+
+     use Data::Schema qw(Plugin::Foo Type::Bar Schema::Baz ...);
+     my $ds = Data::Schema->new; # foo, bar, baz will be loaded by default
+
+    This is a shortcut to the more verbose form:
+
+     use Data::Schema;
+     my $ds = Data::Schema->new;
+
+     $ds->register_plugin('Data::Schema::Plugin::Foo');
+
+     $ds->register_type('bar', 'Data::Schema::Type::Bar');
+
+     use Data::Schema::Schema::Baz;
+     $ds->register_schema_as_type($_, $Data::Schema::Schema::Baz::DS_SCHEMAS->{$_})
+        for keys %$Data::Schema::Schema::Baz::DS_SCHEMAS;
+
 FUNCTIONS
   ds_validate($data, $schema)
     Non-OO wrapper for validate(). Exported by default. See "validate()"
@@ -163,6 +182,15 @@ METHODS
     Add a data error when in validation process. Will not add if there are
     already too many errors ("too_many_errors" attribute is true). Used by
     type handlers. As DS user, normally you wouldn't need this.
+
+  data_warn($message)
+    Add a data warning when in validation process. Will not add if there are
+    already too many warnings ("too_many_warnings" attribute is true). Used
+    by type handlers. As DS user, normally you wouldn't need this.
+
+  debug($message[, $level])
+    Log debug messages. Used by type handlers when validating. As DS user,
+    normally you wouldn't need this.
 
   schema_error($message)
     Method to call when encountering schema error during
@@ -237,12 +265,18 @@ METHODS
     Validate a data structure. $schema must be given unless you already give
     the schema via the schema attribute.
 
-    Returns {success=>0 or 1, errors=>[...]}. The 'success' key will be set
-    to 1 if the data validates, otherwise 'errors' will be filled with the
-    details.
+    Returns {success=>0 or 1, errors=>[...], warnings=>[...]}. The 'success'
+    key will be set to 1 if the data validates, otherwise 'errors' will be
+    filled with the details.
 
   errors_as_array
     Return formatted errors in an array of strings.
+
+  warnings_as_array
+    Return formatted warnings in an array of strings.
+
+  logs_as_array
+    Return formatted logs in an array of strings.
 
   emit_perl([$schema])
     Return Perl code equivalent to schema $schema.
@@ -284,23 +318,31 @@ COMPARISON WITH OTHER DATA VALIDATION MODULES
     Another design consideration for DS is, I want to maximize reusability
     of my schemas. And thus DS allows you to define schemas in terms of
     other schemas. External schemas can be "require"-d from Perl variables
-    or loaded from YAML files.
-
-    DS is still in its early phase of development, but I am already starting
-    to use it in production. I am quite content with the current syntax, but
-    that doesn't mean it won't change in the future. DS can already do
-    decent validation, there are already several basic types each with a
-    decent set of attributes. But some "standard" stuffs present in other
-    modules are still absent in DS: handling of default values and filters.
-    These will be added in future releases along with other planned features
-    like variable substitution, etc.
+    or loaded from YAML files. Of course, you can also extend with Perl as
+    usual (e.g. writing new types and new attributes).
 
 SEE ALSO
-    Data::Schema::Manual::Tutorial, Data::Schema::Manual::Schema,
-    Data::Schema::Manual::TypeHandler, Data::Schema::Manual::Plugin
+    Data::Schema::Manual::Tutorial
+
+    Data::Schema::Manual::Schema
+
+    Data::Schema::Manual::TypeHandler
+
+    Data::Schema::Manual::Plugin
 
     Some other data validation modules on CPAN: Data::FormValidator,
     Data::Rx, Kwalify.
+
+    Config::Tree uses Data::Schema to check command-line options and makes
+    it easy to generate --help/usage information.
+
+    LUGS::Events::Parser by Steven Schubiger is apparently one of the first
+    modules (outside my own of course) which use Data::Schema.
+
+    Data::Schema::Schema:: namespace is reserved for modules that contain DS
+    schemas. For example, Data::Schema::Schema::CPANMeta validates CPAN
+    META.yml. Data::Schema::Schema::Schema contains the schema for DS schema
+    itself.
 
 BUGS
     Please report any bugs or feature requests to "bug-data-schema at

@@ -1,19 +1,16 @@
 #!perl -T
 
+use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More;
+use Test::More tests => 47;
 use Test::Exception;
 use FindBin '$Bin';
 use Scalar::Util qw/tainted/;
+use Data::Schema;
 
 ($Bin) = $Bin =~ /(.*)/; # untaint
 #print "\$Bin tainted? ", tainted($Bin), "\n";
-
-use Data::Schema;
-
-use lib './t';
-require 'testlib.pm';
 
 my $ds = Data::Schema->new;
 $ds->register_plugin('Data::Schema::Plugin::LoadSchema::YAMLFile');
@@ -50,4 +47,4 @@ valid({line1=>1, city=>1, province=>1, country=>"US", zipcode=>12345}, 'us_addre
 invalid({line1=>1, city=>1, province=>1, country=>"ID", zipcode=>12345}, 'us_address', 'schema on schema + merge 5', $ds);
 invalid({line1=>1, city=>1, province=>1, country=>"US", postcode=>12345}, 'us_address', 'schema on schema + merge 6', $ds);
 
-done_testing();
+
