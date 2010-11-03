@@ -1,5 +1,5 @@
 package Data::Schema::Type::Num;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Base type handler for numbers
@@ -70,7 +70,7 @@ Data::Schema::Type::Num - Base type handler for numbers
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 

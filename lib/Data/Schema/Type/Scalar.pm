@@ -1,5 +1,5 @@
 package Data::Schema::Type::Scalar;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Role for scalar types
@@ -90,7 +90,7 @@ Data::Schema::Type::Scalar - Role for scalar types
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 

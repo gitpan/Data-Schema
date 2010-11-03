@@ -1,5 +1,5 @@
 package Data::Schema;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Validate nested data structures with nested structure
@@ -7,7 +7,7 @@ our $VERSION = '0.13';
 
 use Moose;
 use Data::Schema::Config;
-use Data::PrefixMerge;
+use Data::ModeMerge;
 use Data::Schema::Type::Schema;
 use Digest::MD5 qw/md5_hex/;
 use Storable qw/freeze/;
@@ -51,10 +51,8 @@ sub ds_validate {
     $ds->validate($data);
 }
 
-our $Merger = new Data::PrefixMerge;
+our $Merger = new Data::ModeMerge;
 $Merger->config->recurse_array(1);
-$Merger->config->preserve_keep_prefix(1);
-$Merger->config->hash_options_key('MERGE_OPTS');
 
 
 
@@ -162,8 +160,6 @@ sub merge_attr_hashes {
     }
     $res->{result} = \@merged unless $res->{error};
     $res->{success} = !$res->{error};
-
-    $Merger->remove_keep_prefixes(\@merged, 2);# if $did_merging;
 
     #print "DEBUG: merge_attr_hashes($self, ".Data::Schema::Type::Base::_dump({}, $attr_hashes).
     #    ") = ".($res->{success} ? Data::Schema::Type::Base::_dump({}, $res->{result}) : "FAIL")."\n";
@@ -824,7 +820,7 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 

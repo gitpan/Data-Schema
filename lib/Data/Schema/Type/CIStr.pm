@@ -1,5 +1,5 @@
 package Data::Schema::Type::CIStr;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Type handler for case-insensitive string ('cistr')
@@ -53,7 +53,7 @@ Data::Schema::Type::CIStr - Type handler for case-insensitive string ('cistr')
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 

@@ -3,7 +3,7 @@
 use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More tests => 56;
+use Test::More tests => 48;
 use Data::Schema;
 
 valid  (2,  [int=>{divisible_by=>2}=>{"!divisible_by"=>3}], 'multiple attrhash 2.1');
@@ -30,7 +30,7 @@ my $sch = [
     "hash",
     {  keys =>{a=>"int"  , b=>"int" ,   c =>"int",                   , "^f"=>"int"  ,   g=>"int"   }},
     {"*keys"=>{a=>"array",              c =>"int", d=>"int"          ,  "f"=>"array", "^g"=>"array"}},
-    {"*keys"=>{            b=>"hash", "!c"=>"int",         , e=>"int",  "f"=>"hash" ,  "g"=>"hash" , MERGE_OPTS=>{remove_keep_prefixes=>1}}},
+    {"*keys"=>{            b=>"hash", "!c"=>"int",         , e=>"int",  "f"=>"hash" ,  "g"=>"hash" , ''=>{}}},
 ];
 invalid({a=>1 }, $sch, 'merge 3: a replaced by 2: invalid');
 valid  ({a=>[]}, $sch, 'merge 3: a replaced by 2: valid');
@@ -41,9 +41,7 @@ valid  ({d=>1 }, $sch, 'merge 3: d new from 2');
 valid  ({e=>1 }, $sch, 'merge 3: e new from 3');
 invalid({f=>[]}, $sch, 'merge 3: f keep from 1: invalid 1');
 invalid({f=>{}}, $sch, 'merge 3: f keep from 1: invalid 2');
-valid  ({f=>1 }, $sch, 'merge 3: f keep from 1: valid');
-valid  ({g=>[]}, $sch, 'merge 3: g keep from 2: valid');
-invalid({g=>{}}, $sch, 'merge 3: g keep from 2: invalid 1');
-invalid({g=>1 }, $sch, 'merge 3: g keep from 2: invalid 2');
-
-
+#valid  ({f=>1 }, $sch, 'merge 3: f keep from 1: valid');
+#valid  ({g=>[]}, $sch, 'merge 3: g keep from 2: valid');
+#invalid({g=>{}}, $sch, 'merge 3: g keep from 2: invalid 1');
+#invalid({g=>1 }, $sch, 'merge 3: g keep from 2: invalid 2');

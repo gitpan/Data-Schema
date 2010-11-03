@@ -10,7 +10,7 @@ meta-spec:
 name: Data-Schema
 requires:
   Data::Dumper: 0
-  Data::PrefixMerge: 0.12
+  Data::ModeMerge: 0
   Digest::MD5: 0
   File::Slurp: 0
   FindBin: 0
@@ -21,4 +21,4 @@ requires:
   Test::Exception: 0
   Test::More: 0
   YAML::Syck: 0
-version: 0.13
+version: 0.131

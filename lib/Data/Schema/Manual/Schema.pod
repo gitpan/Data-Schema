@@ -11,7 +11,7 @@ Data::Schema::Manual::Schema
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 OVERVIEW
 
@@ -353,8 +353,8 @@ merged first before evaluating:
 So in short, unless the right hand side is devoid of merge prefixes,
 merging will be done first from left to right.
 
-Data::Schema uses L<Data::PrefixMerge> to do the
-merging. Data::PrefixMerge style of merging allows keys on the left
+Data::Schema uses L<Data::ModeMerge> to do the
+merging. Data::ModeMerge style of merging allows keys on the left
 side to replace but also add, subtract, remove keys from the left
 side. This allows schema definition to add attributes (restrict types
 even more), or replace attributes (change type restriction) as well as
@@ -378,14 +378,14 @@ Examples:
  [int => {one_of=>[1,2,3,4,5]}, {'-one_of'=>[4]}] # will be merged and become:
  [int => {one_of=>[1,2,3,  5]}                  ]
 
-Refer to L<Data::PrefixMerge> for details on merging syntax and behaviour.
+Refer to L<Data::ModeMerge> for details on merging syntax and behaviour.
 
 =head3 Merging and hash keys (and regexes)
 
 If you use attribute hash merging, certain first character of hash
 keys, i.e. C<^>, C<+>, C<->, C<.>, and C<*> will be treated as special
 and will be processed, and eventually removed, except the keep mode
-prefix C<^>. See L<Data::PrefixMerge> for more details on how merging
+prefix C<^>. See L<Data::ModeMerge> for more details on how merging
 works.
 
 Since this is done recursively, you have to be careful when you have

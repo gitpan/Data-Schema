@@ -1,5 +1,5 @@
 package Data::Schema::Type::Schema;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Make schema as type
@@ -102,7 +102,7 @@ Data::Schema::Type::Schema - Make schema as type
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 

@@ -3,7 +3,7 @@
 use lib './t'; require 'testlib.pm';
 use strict;
 use warnings;
-use Test::More tests => 54;
+use Test::More tests => 50;
 use Test::Exception;
 use Data::Schema;
 
@@ -48,7 +48,7 @@ valid  (undef, [int=>{set=>1, default=>-1, min=>2}, {'+default'=> 3}], 'merge ad
 invalid(undef, [int=>{        default=> 4, min=>2}, {'-default'=> 3}], 'merge subtract 1');
 valid  (undef, [int=>{set=>1, default=>-1, min=>2}, {'-default'=>-3}], 'merge subtract 2');
 
-invalid(undef, [int=>{set=>1, '^default'=>1, min=>2}, {default=>2}], 'merge keep 1');
-valid  (undef, [int=>{set=>1, '^default'=>2, min=>2}, {default=>1}], 'merge keep 2');
+#invalid(undef, [int=>{set=>1, '^default'=>1, min=>2}, {default=>2}], 'merge keep 1');
+#valid  (undef, [int=>{set=>1, '^default'=>2, min=>2}, {default=>1}], 'merge keep 2');
 
 

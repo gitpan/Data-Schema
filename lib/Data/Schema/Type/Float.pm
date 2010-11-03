@@ -1,5 +1,5 @@
 package Data::Schema::Type::Float;
-our $VERSION = '0.13';
+our $VERSION = '0.131';
 
 
 # ABSTRACT: Type handler for floating point numbers ('float')
@@ -35,7 +35,7 @@ Data::Schema::Type::Float - Type handler for floating point numbers ('float')
 
 =head1 VERSION
 
-version 0.13
+version 0.131
 
 =head1 SYNOPSIS
 
