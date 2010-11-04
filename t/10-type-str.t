@@ -28,8 +28,8 @@ for (qw(match matches)) {
     valid('12a', [str => {"not_$_"=>'^\d+$'}], "not_$_ 2");
 }
 # match regex object
-valid('12', [str => {match=>qr/^\d+$/}], "match re object 1");
-invalid('12a', [str => {match=>qr/^\d+$/}], "match re object 2");
+valid('12', [str => {match=>'^\d+$'}], "match re object 1");
+invalid('12a', [str => {match=>'^\d+$'}], "match re object 2");
 
 # isa_regex
 for (qw(isa_regex)) {

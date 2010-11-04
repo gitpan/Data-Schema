@@ -1,5 +1,12 @@
 Revision history for Data-Schema
 
+0.132   2010-11-04
+
+        - Build fix: Comment out 'use Carp::Always'
+
+        - Test fix: Storable can't handle Regexp
+
+
 0.131   2010-11-03
 
         - Interim release to replace Data::PrefixMerge with Data::ModeMerge.

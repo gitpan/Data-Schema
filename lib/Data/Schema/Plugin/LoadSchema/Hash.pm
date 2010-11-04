@@ -1,5 +1,5 @@
 package Data::Schema::Plugin::LoadSchema::Hash;
-our $VERSION = '0.131';
+our $VERSION = '0.132';
 
 
 # ABSTRACT: Plugin to load schemas from hashes
@@ -32,7 +32,7 @@ Data::Schema::Plugin::LoadSchema::Hash - Plugin to load schemas from hashes
 
 =head1 VERSION
 
-version 0.131
+version 0.132
 
 =head1 SYNOPSIS
 

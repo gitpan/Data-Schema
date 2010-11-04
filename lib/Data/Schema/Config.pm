@@ -1,5 +1,5 @@
 package Data::Schema::Config;
-our $VERSION = '0.131';
+our $VERSION = '0.132';
 
 
 # ABSTRACT: Data::Schema configuration
@@ -44,7 +44,7 @@ Data::Schema::Config - Data::Schema configuration
 
 =head1 VERSION
 
-version 0.131
+version 0.132
 
 =head1 SYNOPSIS
 

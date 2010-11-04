@@ -2,7 +2,7 @@ use Storable;
 use Data::Dumper;
 use strict;
 use warnings;
-use Carp::Always;
+#use Carp::Always;
 use Scalar::Util qw/tainted/;
 
 my $TEST_COMPILED = 1;

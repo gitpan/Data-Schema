@@ -1,5 +1,5 @@
 package Data::Schema;
-our $VERSION = '0.131';
+our $VERSION = '0.132';
 
 
 # ABSTRACT: Validate nested data structures with nested structure
@@ -820,7 +820,7 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-version 0.131
+version 0.132
 
 =head1 SYNOPSIS
 

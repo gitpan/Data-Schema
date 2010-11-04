@@ -1,5 +1,5 @@
 package Data::Schema::Type::Int;
-our $VERSION = '0.131';
+our $VERSION = '0.132';
 
 
 # ABSTRACT: Type handler for integer numbers ('int')
@@ -151,7 +151,7 @@ Data::Schema::Type::Int - Type handler for integer numbers ('int')
 
 =head1 VERSION
 
-version 0.131
+version 0.132
 
 =head1 SYNOPSIS
 
