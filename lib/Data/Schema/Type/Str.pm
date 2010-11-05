@@ -1,5 +1,5 @@
 package Data::Schema::Type::Str;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Type handler for string ('str')
@@ -176,7 +176,7 @@ Data::Schema::Type::Str - Type handler for string ('str')
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 

@@ -1,5 +1,10 @@
 Revision history for Data-Schema
 
+0.133   2010-11-05
+
+        - Remove duplicate pod-coverage.t
+
+
 0.132   2010-11-04
 
         - Build fix: Comment out 'use Carp::Always'

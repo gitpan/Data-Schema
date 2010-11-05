@@ -2,7 +2,7 @@ NAME
     Data::Schema - Validate nested data structures with nested structure
 
 VERSION
-    version 0.132
+    version 0.133
 
 SYNOPSIS
         # OO interface

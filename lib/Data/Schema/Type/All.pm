@@ -1,5 +1,5 @@
 package Data::Schema::Type::All;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Type handler for 'all' type
@@ -96,7 +96,7 @@ Data::Schema::Type::All - Type handler for 'all' type
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 

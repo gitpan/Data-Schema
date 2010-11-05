@@ -11,7 +11,7 @@ Data::Schema::Manual::TypeHandler
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 OVERVIEW
 

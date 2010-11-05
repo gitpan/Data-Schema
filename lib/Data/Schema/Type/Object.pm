@@ -1,5 +1,5 @@
 package Data::Schema::Type::Object;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Type handler for Perl objects ('object')
@@ -218,7 +218,7 @@ Data::Schema::Type::Object - Type handler for Perl objects ('object')
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 

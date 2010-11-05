@@ -1,5 +1,5 @@
 package Data::Schema::Type::Printable;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Role for printable stuff
@@ -21,7 +21,7 @@ Data::Schema::Type::Printable - Role for printable stuff
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 

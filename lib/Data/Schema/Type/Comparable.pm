@@ -1,5 +1,5 @@
 package Data::Schema::Type::Comparable;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Role for comparable types
@@ -141,7 +141,7 @@ Data::Schema::Type::Comparable - Role for comparable types
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 

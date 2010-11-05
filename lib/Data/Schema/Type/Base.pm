@@ -1,5 +1,5 @@
 package Data::Schema::Type::Base;
-our $VERSION = '0.132';
+our $VERSION = '0.133';
 
 
 # ABSTRACT: Base class for Data::Schema type handler
@@ -737,7 +737,7 @@ Data::Schema::Type::Base - Base class for Data::Schema type handler
 
 =head1 VERSION
 
-version 0.132
+version 0.133
 
 =head1 SYNOPSIS
 
