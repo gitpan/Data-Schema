@@ -1,5 +1,5 @@
 package Data::Schema::Type::MyType1;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 

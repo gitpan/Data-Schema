@@ -1,5 +1,5 @@
 package Data::Schema::Type::Sortable;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 # ABSTRACT: Role for sortable types
@@ -118,7 +118,7 @@ Data::Schema::Type::Sortable - Role for sortable types
 
 =head1 VERSION
 
-version 0.133
+version 0.134
 
 =head1 SYNOPSIS
 

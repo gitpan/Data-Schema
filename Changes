@@ -1,5 +1,10 @@
 Revision history for Data-Schema
 
+0.134   2012-07-05
+
+        No functional changes. Add deprecated notice.
+
+
 0.133   2010-11-05
 
         - Remove duplicate pod-coverage.t

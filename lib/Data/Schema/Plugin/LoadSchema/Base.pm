@@ -1,5 +1,5 @@
 package Data::Schema::Plugin::LoadSchema::Base;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 # ABSTRACT: Base class for other DSP::LoadSchema::* plugins
@@ -68,7 +68,7 @@ Data::Schema::Plugin::LoadSchema::Base - Base class for other DSP::LoadSchema::*
 
 =head1 VERSION
 
-version 0.133
+version 0.134
 
 =head1 SYNOPSIS
 

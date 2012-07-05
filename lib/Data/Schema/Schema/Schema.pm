@@ -1,5 +1,5 @@
 package Data::Schema::Schema::Schema;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 # ABSTRACT: the DS schema of DS schema
@@ -259,7 +259,7 @@ Data::Schema::Schema::Schema - the DS schema of DS schema
 
 =head1 VERSION
 
-version 0.133
+version 0.134
 
 =head1 SYNOPSIS
 

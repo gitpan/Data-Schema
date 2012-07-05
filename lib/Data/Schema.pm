@@ -1,5 +1,5 @@
 package Data::Schema;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 # ABSTRACT: Validate nested data structures with nested structure
@@ -820,7 +820,7 @@ Data::Schema - Validate nested data structures with nested structure
 
 =head1 VERSION
 
-version 0.133
+version 0.134
 
 =head1 SYNOPSIS
 
@@ -911,6 +911,9 @@ version 0.133
     };
 
 =head1 DESCRIPTION
+
+B<NOTE: THIS MODULE IS DEPRECATED AND WILL NOT BE DEVELOPED FURTHER. PLEASE
+SEE Data::Sah INSTEAD.>
 
 Data::Schema (DS) is a schema system for data validation. It lets you
 write schemas as data structures, ranging from very simple (a scalar)

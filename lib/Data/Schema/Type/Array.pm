@@ -1,5 +1,5 @@
 package Data::Schema::Type::Array;
-our $VERSION = '0.133';
+our $VERSION = '0.134';
 
 
 # ABSTRACT: Type handler for arrays ('array')
@@ -366,7 +366,7 @@ Data::Schema::Type::Array - Type handler for arrays ('array')
 
 =head1 VERSION
 
-version 0.133
+version 0.134
 
 =head1 SYNOPSIS
 

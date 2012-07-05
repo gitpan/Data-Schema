@@ -2,7 +2,7 @@ NAME
     Data::Schema - Validate nested data structures with nested structure
 
 VERSION
-    version 0.133
+    version 0.134
 
 SYNOPSIS
         # OO interface
@@ -92,6 +92,10 @@ SYNOPSIS
         };
 
 DESCRIPTION
+
+    NOTE: THIS MODULE IS DEPRECATED AND WILL NOT BE DEVELOPED FURTHER. SEE
+    Data::Sah INSTEAD.
+
     Data::Schema (DS) is a schema system for data validation. It lets you
     write schemas as data structures, ranging from very simple (a scalar) to
     fairly complex (nested hashes/arrays with various criteria).
