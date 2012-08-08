@@ -1,8 +1,8 @@
 package Data::Schema;
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
-# ABSTRACT: Validate nested data structures with nested structure
+# ABSTRACT: (DEPRECATED) Validate nested data structures with nested structure
 
 
 use Moose;
@@ -816,11 +816,11 @@ __END__
 
 =head1 NAME
 
-Data::Schema - Validate nested data structures with nested structure
+Data::Schema - (DEPRECATED) Validate nested data structures with nested structure
 
 =head1 VERSION
 
-version 0.134
+version 0.135
 
 =head1 SYNOPSIS
 

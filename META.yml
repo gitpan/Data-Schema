@@ -1,5 +1,5 @@
 ---
-abstract: 'Validate nested data structures with nested structure'
+abstract: '(DEPRECATED) Validate nested data structures with nested structure'
 author:
   - 'Steven Haryanto <stevenharyanto@gmail.com>'
 generated_by: 'Dist::Zilla version 1.093000'
@@ -21,4 +21,6 @@ requires:
   Test::Exception: 0
   Test::More: 0
   YAML::Syck: 0
-version: 0.134
+  multidimensional: 0
+  bareword::filehandles: 0
+version: 0.135

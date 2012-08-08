@@ -1,5 +1,5 @@
 package Data::Schema::Type::Bool;
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 # ABSTRACT: Type handler for booleans ('bool')
@@ -77,7 +77,7 @@ Data::Schema::Type::Bool - Type handler for booleans ('bool')
 
 =head1 VERSION
 
-version 0.134
+version 0.135
 
 =head1 SYNOPSIS
 

@@ -1,28 +1,33 @@
 Revision history for Data-Schema
 
-0.134   2012-07-05
+0.135   2012-08-08 (SHARYANTO)
+
+        No functional changes. Add deprecated notice in Abstract.
+
+
+0.134   2012-07-05 (SHARYANTO)
 
         No functional changes. Add deprecated notice.
 
 
-0.133   2010-11-05
+0.133   2010-11-05 (SHARYANTO)
 
         - Remove duplicate pod-coverage.t
 
 
-0.132   2010-11-04
+0.132   2010-11-04 (SHARYANTO)
 
         - Build fix: Comment out 'use Carp::Always'
 
         - Test fix: Storable can't handle Regexp
 
 
-0.131   2010-11-03
+0.131   2010-11-03 (SHARYANTO)
 
         - Interim release to replace Data::PrefixMerge with Data::ModeMerge.
 
 
-0.13    2009-11-25
+0.13    2009-11-25 (SHARYANTO)
 
         - schema definition of DS schema (in DS::Schema::Schema)
 
@@ -65,7 +70,7 @@ Revision history for Data-Schema
 
 	- refactoring, bug fixes, added tests
 
-0.12    2009-11-20
+0.12    2009-11-20 (SHARYANTO)
         - new: DS now can compile schema to Perl code for much
           speedier validation
 	- INCOMPATIBLE CHANGE: required_keys_regex and required_keys
@@ -91,15 +96,15 @@ Revision history for Data-Schema
         - rearrange tests
         - fix bug in attribute hash merging
 
-0.11    2009-11-09
+0.11    2009-11-09 (SHARYANTO)
         - fix broken 0.10 release (HasLength has been replaced)
 
-0.10    2009-11-09
+0.10    2009-11-09 (SHARYANTO)
         - new: type attribute 'deps' for HasElement types, specifying
           interelement dependencies.
         - new: type 'cistr' (case-insensitive string)
 
-0.09    2009-11-08
+0.09    2009-11-08 (SHARYANTO)
         - now requires Data::PrefixMerge 0.06
         - new: type attribute 'forbidden' (the opposite of 'required'), which
           states that data must be undef
@@ -117,23 +122,23 @@ Revision history for Data-Schema
           anyway. to get the old behaviour, you need to set configuration:
           'allow_extra_hash_keys' to true.
 
-0.08    2009-11-06
+0.08    2009-11-06 (SHARYANTO)
         - refactor: use Moose role: Comparable, Sortable, and HasLength
         - refactor: change type_in_english() to english()
         - add no Moose to every Moose classes
 
-0.07    2009-08-05
+0.07    2009-08-05 (SHARYANTO)
         - optimization: defer loading default type handlers until
           needed (for slightly better startup speed)
         - new feature: add type_in_english() for type handler
         - doc: small fixes & example addition
         - change: ignore all ui.* type attributes
 
-0.06    2009-06-22
+0.06    2009-06-22 (SHARYANTO)
         - use Data::PrefixMerge 0.05
         - allow merge prefix on first attrhash (for KEEP mode merges)
 
-0.05    2009-06-13
+0.05    2009-06-13 (SHARYANTO)
         - changed type attributes for hash: add (keys_of, values_of,
           allowed_values/values_one_of), remove (all_keys), change
           (of)
@@ -141,20 +146,20 @@ Revision history for Data-Schema
         - doc: some more work & fixes on documentation
         - bug fixes
 
-0.04    2009-03-31
+0.04    2009-03-31 (SHARYANTO)
         - doc: some more work on documentation
         - change: remove some attribute synonyms, rename some
 
-0.03    2009-03-30
+0.03    2009-03-30 (SHARYANTO)
         - rename from Schema-Nested to Data-Schema
         - new feature: attribute suffix
         - new config: gettext_function
         - doc: improve & reorganize documentation
 
-0.02    2009-03-30
+0.02    2009-03-30 (SHARYANTO)
         - new feature: add new attribute for array: unique
         - new feature: add attribute alias for Base's one_of: enum
         - doc: fix typos
 
-0.01    2009-03-29
+0.01    2009-03-29 (SHARYANTO)
         First release

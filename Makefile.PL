@@ -8,8 +8,8 @@ WriteMakefile(
   DISTNAME  => 'Data-Schema',
   NAME      => 'Data::Schema',
   AUTHOR    => "Steven\ Haryanto\ \<stevenharyanto\@gmail\.com\>",
-  ABSTRACT  => "Validate\ nested\ data\ structures\ with\ nested\ structure",
-  VERSION   => '0.134',
+  ABSTRACT  => "(DEPRECATED) Validate\ nested\ data\ structures\ with\ nested\ structure",
+  VERSION   => '0.135',
   EXE_FILES => [ qw() ],
   (eval { ExtUtils::MakeMaker->VERSION(6.31) } ? (LICENSE => 'perl') : ()),
   PREREQ_PM    => {
@@ -25,6 +25,8 @@ WriteMakefile(
     "List::MoreUtils" => '0',
     "Moose" => '0',
     "File::Slurp" => '0',
+    "multidimensional" => '0',
+    "bareword::filehandles" => '0',
   },
   test => {TESTS => 't/*.t'}
 );

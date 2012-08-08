@@ -1,5 +1,5 @@
 package Data::Schema::Type::Either;
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 # ABSTRACT: Type handler for 'either' type
@@ -96,7 +96,7 @@ Data::Schema::Type::Either - Type handler for 'either' type
 
 =head1 VERSION
 
-version 0.134
+version 0.135
 
 =head1 SYNOPSIS
 

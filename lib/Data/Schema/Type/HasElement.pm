@@ -1,5 +1,5 @@
 package Data::Schema::Type::HasElement;
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 # ABSTRACT: Role for types that have the notion of elements
@@ -306,7 +306,7 @@ Data::Schema::Type::HasElement - Role for types that have the notion of elements
 
 =head1 VERSION
 
-version 0.134
+version 0.135
 
 =head1 SYNOPSIS
 

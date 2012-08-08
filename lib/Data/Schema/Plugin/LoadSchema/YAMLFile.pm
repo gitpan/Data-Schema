@@ -1,5 +1,5 @@
 package Data::Schema::Plugin::LoadSchema::YAMLFile;
-our $VERSION = '0.134';
+our $VERSION = '0.135';
 
 
 # ABSTRACT: Plugin to load schemas from YAML files
@@ -55,7 +55,7 @@ Data::Schema::Plugin::LoadSchema::YAMLFile - Plugin to load schemas from YAML fi
 
 =head1 VERSION
 
-version 0.134
+version 0.135
 
 =head1 SYNOPSIS
 
