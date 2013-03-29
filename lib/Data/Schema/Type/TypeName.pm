@@ -1,5 +1,5 @@
 package Data::Schema::Type::TypeName;
-our $VERSION = '0.135';
+our $VERSION = '0.136';
 
 
 # ABSTRACT: Type handler for DS type 'typename'
@@ -107,7 +107,7 @@ Data::Schema::Type::TypeName - Type handler for DS type 'typename'
 
 =head1 VERSION
 
-version 0.135
+version 0.136
 
 =head1 SYNOPSIS
 

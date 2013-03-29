@@ -1,5 +1,5 @@
 package Data::Schema::Type::Hash;
-our $VERSION = '0.135';
+our $VERSION = '0.136';
 
 
 # ABSTRACT: Type handler for hash ('hash')
@@ -957,7 +957,7 @@ Data::Schema::Type::Hash - Type handler for hash ('hash')
 
 =head1 VERSION
 
-version 0.135
+version 0.136
 
 =head1 SYNOPSIS
 

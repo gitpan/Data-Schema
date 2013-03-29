@@ -1,5 +1,11 @@
 Revision history for Data-Schema
 
+0.136   2013-03-30 (SHARYANTO)
+
+        Add $Storable::canonical=1 to deal with Perl hash randomization
+        [RT#84256].
+
+
 0.135   2012-08-08 (SHARYANTO)
 
         No functional changes. Add deprecated notice in Abstract.

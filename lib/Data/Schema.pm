@@ -1,5 +1,5 @@
 package Data::Schema;
-our $VERSION = '0.135';
+our $VERSION = '0.136';
 
 
 # ABSTRACT: (DEPRECATED) Validate nested data structures with nested structure
@@ -571,6 +571,9 @@ sub logs_as_array {
 sub _schema2csubname {
     my ($self, $schema) = @_;
 
+    # deal with perl hash randomization
+    local $Storable::canonical = 1;
+
     # avoid warning from Storable when trying to freeze coderef
     local $self->config->{gettext_function} =
 	($self->config->{gettext_function} // "")."";
@@ -820,7 +823,7 @@ Data::Schema - (DEPRECATED) Validate nested data structures with nested structur
 
 =head1 VERSION
 
-version 0.135
+version 0.136
 
 =head1 SYNOPSIS
 
